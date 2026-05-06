@@ -6,12 +6,8 @@ const c = require('../controllers/cronogramasController');
 const n = require('../controllers/notificacoesController');
 const d = require('../controllers/disponibilidadeController');
 
-// Professores
+// Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
-router.get('/professores/:id', auth, p.buscarPorId);
-router.post('/professores', auth, p.criar);
-router.put('/professores/:id', auth, p.atualizar);
-router.delete('/professores/:id', auth, p.deletar);
 
 // Salas
 router.get('/salas', auth, s.listar);

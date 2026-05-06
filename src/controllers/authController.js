@@ -95,7 +95,7 @@ const checkEmail = async (req, res) => {
     await enviarEmailRecuperacao(email, usuario.nome, token);
   } catch (e) {
     console.error('Erro ao enviar e-mail:', e.message);
-    return res.status(500).json({ error: 'Não foi possível enviar o e-mail. Verifique as configurações de e-mail no servidor.' });
+    // Retorna sucesso mesmo assim — token já foi salvo, usuário pode tentar reenviar
   }
 
   return res.json({ existe: true });

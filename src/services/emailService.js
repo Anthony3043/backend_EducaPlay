@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const enviarEmailRecuperacao = async (email, nome, token) => {
-  const link = `educaplayfrontend://Resetpassword?token=${token}`;
+  const link = `${process.env.BASE_URL}/api/auth/reset-senha?token=${token}`;
 
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
@@ -27,7 +27,7 @@ const enviarEmailRecuperacao = async (email, nome, token) => {
             Recebemos uma solicitação para redefinir a senha da sua conta no EducaPlay.
           </p>
           <div style="text-align: center; margin: 28px 0;">
-            <a href="${link}" style="background: #3a7d44; color: #ffffff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            <a href="${link}" target="_blank" style="display: inline-block; background: #3a7d44; color: #ffffff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px; font-family: Arial, sans-serif;">
               Redefinir minha senha
             </a>
           </div>
