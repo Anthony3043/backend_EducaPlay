@@ -5,11 +5,11 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "npx prisma migrate deploy && node server.js",
-    "build": "npx prisma generate",
-    "postinstall": "npx prisma generate",
-    "db:migrate": "npx prisma migrate dev --name init",
-    "db:studio": "npx prisma studio",
+    "start": "npx prisma@5.22.0 migrate deploy && node server.js",
+    "build": "npx prisma@5.22.0 generate",
+    "postinstall": "npx prisma@5.22.0 generate",
+    "db:migrate": "npx prisma@5.22.0 migrate dev --name init",
+    "db:studio": "npx prisma@5.22.0 studio",
     "db:seed": "node prisma/seed.js"
   },
   "dependencies": {
