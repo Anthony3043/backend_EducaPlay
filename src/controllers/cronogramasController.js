@@ -38,6 +38,23 @@ const criar = async (req, res) => {
   return res.status(201).json(cronograma);
 };
 
+const criarAula = async (req, res) => {
+  const { cronogramaId, timeStart, timeEnd, subject, isInterval, professorId } = req.body;
+  if (!cronogramaId || !timeStart || !timeEnd || !subject) {
+    return res.status(400).json({ error: 'cronogramaId, timeStart, timeEnd e subject são obrigatórios.' });
+  }
+  const cronograma = await prisma.cronograma.findUnique({ where: { id: cronogramaId } });
+  if (!cronograma) return res.status(404).json({ error: 'Cronograma não encontrado.' });
+  const aula = await prisma.aula.create({
+    data: { cronogramaId, timeStart, timeEnd, subject, isInterval: !!isInterval, professorId: professorId || null },
+    include: { professor: true },
+  });
+  return res.status(201).json({
+    ...aula,
+    professor: aula.professor ? { ...aula.professor, materias: JSON.parse(aula.professor.materias) } : null,
+  });
+};
+
 const atualizarAula = async (req, res) => {
   const { id } = req.params;
   const { subject, timeStart, timeEnd, isInterval, professorId } = req.body;
@@ -61,4 +78,4 @@ const deletar = async (req, res) => {
   return res.status(204).send();
 };
 
-module.exports = { listar, buscarPorTurno, criar, atualizarAula, deletar };
+module.exports = { listar, buscarPorTurno, criar, criarAula, atualizarAula, deletar };

@@ -19,6 +19,7 @@ router.delete('/salas/:id', auth, s.deletar);
 router.get('/cronogramas', auth, c.listar);
 router.get('/cronogramas/turno/:turno', auth, c.buscarPorTurno);
 router.post('/cronogramas', auth, c.criar);
+router.post('/aulas', auth, c.criarAula);
 router.put('/aulas/:id', auth, c.atualizarAula);
 router.delete('/cronogramas/:id', auth, c.deletar);
 
