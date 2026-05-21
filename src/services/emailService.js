@@ -1,25 +1,13 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  family: 4, // força IPv4 — Render.com free tier não suporta IPv6 outbound
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 8000,
-  greetingTimeout: 8000,
-  socketTimeout: 10000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const enviarEmailRecuperacao = async (email, nome, token) => {
   const link = `${process.env.BASE_URL}/api/auth/reset-senha?token=${token}`;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: email,
+  await resend.emails.send({
+    from: 'EducaPlay <onboarding@resend.dev>',
+    to: [email],
     subject: '🔑 Recuperação de senha - EducaPlay',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f5f6fa; border-radius: 16px;">
