@@ -132,6 +132,16 @@ const resetSenha = async (req, res) => {
   return res.json({ message: 'Senha redefinida com sucesso.' });
 };
 
+const deletarConta = async (req, res) => {
+  try {
+    await prisma.usuario.delete({ where: { id: req.usuario.id } });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('deletarConta error:', err);
+    return res.status(500).json({ error: 'Erro ao excluir conta.' });
+  }
+};
+
 const salvarPushToken = async (req, res) => {
   try {
     const { token } = req.body;
@@ -144,4 +154,4 @@ const salvarPushToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken };
+module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta };
