@@ -103,7 +103,7 @@ const checkEmail = async (req, res) => {
       await enviarEmailRecuperacao(email, usuario.nome, token);
     } catch (e) {
       console.error('Erro ao enviar e-mail:', e.message);
-      return res.status(503).json({ error: 'Não foi possível enviar o e-mail de recuperação. Tente novamente em instantes.' });
+      return res.status(503).json({ error: 'Não foi possível enviar o e-mail de recuperação. Tente novamente em instantes.', detail: e.message });
     }
 
     return res.json({ existe: true });
