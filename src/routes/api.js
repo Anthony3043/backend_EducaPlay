@@ -25,12 +25,12 @@ router.put('/aulas/:id', auth, c.atualizarAula);
 router.delete('/aulas/:id', auth, c.deletarAula);
 router.delete('/cronogramas/:id', auth, c.deletar);
 
-// Notificações
+// Notificações (rotas específicas ANTES das com parâmetro dinâmico)
 router.get('/notificacoes', auth, n.listar);
-router.patch('/notificacoes/:id/lida', auth, n.marcarLida);
 router.patch('/notificacoes/todas/lidas', auth, n.marcarTodasLidas);
-router.delete('/notificacoes/:id', auth, n.deletar);
+router.patch('/notificacoes/:id/lida', auth, n.marcarLida);
 router.delete('/notificacoes', auth, n.limparTodas);
+router.delete('/notificacoes/:id', auth, n.deletar);
 
 // Disponibilidade
 router.get('/disponibilidade/:professorId', auth, d.listar);
