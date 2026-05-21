@@ -5,6 +5,7 @@ const s = require('../controllers/salasController');
 const c = require('../controllers/cronogramasController');
 const n = require('../controllers/notificacoesController');
 const d = require('../controllers/disponibilidadeController');
+const b = require('../controllers/bloqueiosController');
 
 // Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
@@ -33,5 +34,10 @@ router.delete('/notificacoes', auth, n.limparTodas);
 // Disponibilidade
 router.get('/disponibilidade/:professorId', auth, d.listar);
 router.post('/disponibilidade', auth, d.salvar);
+
+// Bloqueios de horário (professor indisponível em outras escolas)
+router.get('/bloqueios', auth, b.listar);
+router.post('/bloqueios', auth, b.criar);
+router.delete('/bloqueios/:id', auth, b.deletar);
 
 module.exports = router;

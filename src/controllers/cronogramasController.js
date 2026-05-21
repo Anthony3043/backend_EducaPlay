@@ -69,6 +69,20 @@ const criarAula = async (req, res) => {
       if (confProfessor) {
         return res.status(409).json({ error: 'Este professor já está alocado em outro horário neste mesmo período.' });
       }
+
+      const bloqueio = await prisma.bloqueioHorario.findFirst({
+        where: {
+          professorId,
+          timeStart: { lt: timeEnd },
+          timeEnd: { gt: timeStart },
+        },
+      });
+      if (bloqueio) {
+        const local = bloqueio.descricao ? `"${bloqueio.descricao}"` : 'outra escola';
+        return res.status(409).json({
+          error: `Professor indisponível neste horário — está em ${local} das ${bloqueio.timeStart} às ${bloqueio.timeEnd}.`,
+        });
+      }
     }
 
     if (!isInterval && salaId) {

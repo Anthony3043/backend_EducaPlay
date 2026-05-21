@@ -23,7 +23,8 @@ model Usuario {
 
   disponibilidades Disponibilidade[]
   notificacoes     Notificacao[]
-  aulas            Aula[]           @relation("AulaProfessor")
+  aulas            Aula[]             @relation("AulaProfessor")
+  bloqueios        BloqueioHorario[]  @relation("BloqueiosProfessor")
 }
 
 model Professor {
@@ -82,6 +83,17 @@ model Disponibilidade {
 
   professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
   usuario   Usuario?  @relation(fields: [usuarioId], references: [id])
+}
+
+model BloqueioHorario {
+  id          String   @id @default(uuid())
+  professorId String
+  timeStart   String
+  timeEnd     String
+  descricao   String?
+  createdAt   DateTime @default(now())
+
+  professor Usuario @relation("BloqueiosProfessor", fields: [professorId], references: [id], onDelete: Cascade)
 }
 
 model Notificacao {
