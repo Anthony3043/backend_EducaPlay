@@ -1,5 +1,16 @@
 const { PrismaClient } = require('@prisma/client');
+const { enviarPush } = require('../services/pushService');
 const prisma = new PrismaClient();
+
+async function notificarProfessor(professorId, titulo, mensagem, icon = '📅') {
+  try {
+    await prisma.notificacao.create({ data: { usuarioId: professorId, titulo, mensagem, icon } });
+    const prof = await prisma.usuario.findUnique({ where: { id: professorId }, select: { expoPushToken: true } });
+    if (prof?.expoPushToken) await enviarPush(prof.expoPushToken, titulo, mensagem);
+  } catch (e) {
+    console.error('notificarProfessor error:', e.message);
+  }
+}
 
 const listar = async (req, res) => {
   try {
@@ -132,6 +143,16 @@ const criarAula = async (req, res) => {
       },
       include: { professor: true, sala: true },
     });
+
+    if (professorId && !isInterval) {
+      await notificarProfessor(
+        professorId,
+        'Nova aula no seu cronograma',
+        `Uma aula de "${subject}" foi adicionada: ${timeStart}–${timeEnd} (turno ${cronograma.turno}).`,
+        '📅'
+      );
+    }
+
     return res.status(201).json({
       ...aula,
       professor: aula.professor ? { id: aula.professor.id, nome: aula.professor.nome } : null,
@@ -225,6 +246,28 @@ const atualizarAula = async (req, res) => {
       },
       include: { professor: true, sala: true },
     });
+
+    if (!existe.isInterval) {
+      const nomeMateria = subject ?? existe.subject;
+      // Professor diferente: notifica o novo e o antigo
+      if (novoProfId && novoProfId !== existe.professorId) {
+        await notificarProfessor(novoProfId, 'Nova aula atribuída a você',
+          `A aula de "${nomeMateria}" (${novoStart}–${novoEnd}) foi atribuída ao seu cronograma.`, '📅');
+      }
+      if (existe.professorId && novoProfId !== existe.professorId) {
+        await notificarProfessor(existe.professorId, 'Você foi removido de uma aula',
+          `A aula de "${nomeMateria}" (${existe.timeStart}–${existe.timeEnd}) foi atribuída a outro professor.`, '📋');
+      }
+      // Mesmo professor, mas horário ou matéria mudou
+      if (novoProfId && novoProfId === existe.professorId) {
+        const mudou = novoStart !== existe.timeStart || novoEnd !== existe.timeEnd || (subject && subject !== existe.subject);
+        if (mudou) {
+          await notificarProfessor(novoProfId, 'Aula modificada no seu cronograma',
+            `A aula de "${nomeMateria}" foi alterada para ${novoStart}–${novoEnd}.`, '✏️');
+        }
+      }
+    }
+
     return res.json({
       ...aula,
       professor: aula.professor ? { id: aula.professor.id, nome: aula.professor.nome } : null,
@@ -240,6 +283,12 @@ const deletarAula = async (req, res) => {
     const { id } = req.params;
     const existe = await prisma.aula.findUnique({ where: { id } });
     if (!existe) return res.status(404).json({ error: 'Aula não encontrada.' });
+
+    if (existe.professorId && !existe.isInterval) {
+      await notificarProfessor(existe.professorId, 'Aula removida do seu cronograma',
+        `A aula de "${existe.subject}" (${existe.timeStart}–${existe.timeEnd}) foi removida do seu cronograma.`, '🗑️');
+    }
+
     await prisma.aula.delete({ where: { id } });
     return res.status(204).send();
   } catch (err) {

@@ -18,6 +18,7 @@ model Usuario {
   foto        String?
   resetToken     String?
   resetTokenExp  DateTime?
+  expoPushToken  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

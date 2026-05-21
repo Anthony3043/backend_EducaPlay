@@ -132,4 +132,16 @@ const resetSenha = async (req, res) => {
   return res.json({ message: 'Senha redefinida com sucesso.' });
 };
 
-module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha };
+const salvarPushToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token é obrigatório.' });
+    await prisma.usuario.update({ where: { id: req.usuario.id }, data: { expoPushToken: token } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('salvarPushToken error:', err);
+    return res.status(500).json({ error: 'Erro ao salvar token.' });
+  }
+};
+
+module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken };
