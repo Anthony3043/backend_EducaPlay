@@ -23,6 +23,7 @@ model Usuario {
 
   disponibilidades Disponibilidade[]
   notificacoes     Notificacao[]
+  aulas            Aula[]           @relation("AulaProfessor")
 }
 
 model Professor {
@@ -33,7 +34,6 @@ model Professor {
   updatedAt DateTime @updatedAt
 
   disponibilidades Disponibilidade[]
-  aulas            Aula[]
 }
 
 model Sala {
@@ -68,7 +68,7 @@ model Aula {
   updatedAt    DateTime   @updatedAt
 
   cronograma Cronograma @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
-  professor  Professor? @relation(fields: [professorId], references: [id])
+  professor  Usuario?   @relation("AulaProfessor", fields: [professorId], references: [id])
   sala       Sala?      @relation(fields: [salaId], references: [id])
 }
 

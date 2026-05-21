@@ -11,7 +11,7 @@ const listar = async (req, res) => {
       ...c,
       aulas: c.aulas.map(a => ({
         ...a,
-        professor: a.professor ? { ...a.professor, materias: JSON.parse(a.professor.materias) } : null,
+        professor: a.professor ? { id: a.professor.id, nome: a.professor.nome } : null,
       })),
     })));
   } catch (err) {
@@ -32,7 +32,7 @@ const buscarPorTurno = async (req, res) => {
       ...cronograma,
       aulas: cronograma.aulas.map(a => ({
         ...a,
-        professor: a.professor ? { ...a.professor, materias: JSON.parse(a.professor.materias) } : null,
+        professor: a.professor ? { id: a.professor.id, nome: a.professor.nome } : null,
       })),
     });
   } catch (err) {
@@ -94,7 +94,7 @@ const criarAula = async (req, res) => {
     });
     return res.status(201).json({
       ...aula,
-      professor: aula.professor ? { ...aula.professor, materias: JSON.parse(aula.professor.materias) } : null,
+      professor: aula.professor ? { id: aula.professor.id, nome: aula.professor.nome } : null,
     });
   } catch (err) {
     console.error('criarAula error:', err);
