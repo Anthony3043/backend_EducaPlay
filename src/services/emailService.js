@@ -1,7 +1,10 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  family: 4, // força IPv4 — Render.com free tier não suporta IPv6 outbound
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
