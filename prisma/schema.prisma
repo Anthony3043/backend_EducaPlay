@@ -42,6 +42,8 @@ model Sala {
   capacidade String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  aulas Aula[]
 }
 
 model Cronograma {
@@ -61,11 +63,13 @@ model Aula {
   isInterval   Boolean    @default(false)
   cronogramaId String
   professorId  String?
+  salaId       String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   cronograma Cronograma @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
   professor  Professor? @relation(fields: [professorId], references: [id])
+  sala       Sala?      @relation(fields: [salaId], references: [id])
 }
 
 model Disponibilidade {

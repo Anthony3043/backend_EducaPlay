@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 const listar = async (req, res) => {
   const cronogramas = await prisma.cronograma.findMany({
-    include: { aulas: { include: { professor: true }, orderBy: { timeStart: 'asc' } } },
+    include: { aulas: { include: { professor: true, sala: true }, orderBy: { timeStart: 'asc' } } },
     orderBy: { createdAt: 'desc' },
   });
   return res.json(cronogramas.map(c => ({
@@ -19,7 +19,7 @@ const buscarPorTurno = async (req, res) => {
   const { turno } = req.params;
   const cronograma = await prisma.cronograma.findFirst({
     where: { turno },
-    include: { aulas: { include: { professor: true }, orderBy: { timeStart: 'asc' } } },
+    include: { aulas: { include: { professor: true, sala: true }, orderBy: { timeStart: 'asc' } } },
   });
   if (!cronograma) return res.status(404).json({ error: 'Cronograma não encontrado.' });
   return res.json({
@@ -39,15 +39,42 @@ const criar = async (req, res) => {
 };
 
 const criarAula = async (req, res) => {
-  const { cronogramaId, timeStart, timeEnd, subject, isInterval, professorId } = req.body;
+  const { cronogramaId, timeStart, timeEnd, subject, isInterval, professorId, salaId } = req.body;
   if (!cronogramaId || !timeStart || !timeEnd || !subject) {
     return res.status(400).json({ error: 'cronogramaId, timeStart, timeEnd e subject são obrigatórios.' });
   }
   const cronograma = await prisma.cronograma.findUnique({ where: { id: cronogramaId } });
   if (!cronograma) return res.status(404).json({ error: 'Cronograma não encontrado.' });
+
+  if (!isInterval && professorId) {
+    const confProfessor = await prisma.aula.findFirst({
+      where: { professorId, timeStart, timeEnd, isInterval: false },
+    });
+    if (confProfessor) {
+      return res.status(409).json({ error: 'Este professor já está alocado em outro horário neste mesmo período.' });
+    }
+  }
+
+  if (!isInterval && salaId) {
+    const confSala = await prisma.aula.findFirst({
+      where: { salaId, timeStart, timeEnd, isInterval: false },
+    });
+    if (confSala) {
+      return res.status(409).json({ error: 'Esta sala já está ocupada neste mesmo período.' });
+    }
+  }
+
   const aula = await prisma.aula.create({
-    data: { cronogramaId, timeStart, timeEnd, subject, isInterval: !!isInterval, professorId: professorId || null },
-    include: { professor: true },
+    data: {
+      cronogramaId,
+      timeStart,
+      timeEnd,
+      subject,
+      isInterval: !!isInterval,
+      professorId: professorId || null,
+      salaId: salaId || null,
+    },
+    include: { professor: true, sala: true },
   });
   return res.status(201).json({
     ...aula,
