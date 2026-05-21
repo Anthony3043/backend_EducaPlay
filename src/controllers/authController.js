@@ -84,28 +84,32 @@ const atualizarPerfil = async (req, res) => {
 };
 
 const checkEmail = async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' });
-  const usuario = await prisma.usuario.findUnique({ where: { email } });
-  if (!usuario) return res.status(404).json({ error: 'E-mail não cadastrado.' });
-
-  // Gera token de reset válido por 30 minutos
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiracao = new Date(Date.now() + 30 * 60 * 1000);
-
-  await prisma.usuario.update({
-    where: { email },
-    data: { resetToken: token, resetTokenExp: expiracao },
-  });
-
   try {
-    await enviarEmailRecuperacao(email, usuario.nome, token);
-  } catch (e) {
-    console.error('Erro ao enviar e-mail:', e.message);
-    // Retorna sucesso mesmo assim — token já foi salvo, usuário pode tentar reenviar
-  }
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' });
 
-  return res.json({ existe: true });
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    if (!usuario) return res.status(404).json({ error: 'E-mail não cadastrado.' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiracao = new Date(Date.now() + 30 * 60 * 1000);
+
+    await prisma.usuario.update({
+      where: { email },
+      data: { resetToken: token, resetTokenExp: expiracao },
+    });
+
+    try {
+      await enviarEmailRecuperacao(email, usuario.nome, token);
+    } catch (e) {
+      console.error('Erro ao enviar e-mail:', e.message);
+    }
+
+    return res.json({ existe: true });
+  } catch (err) {
+    console.error('checkEmail error:', err);
+    return res.status(500).json({ error: 'Erro ao processar recuperação de senha.' });
+  }
 };
 
 const resetSenha = async (req, res) => {
