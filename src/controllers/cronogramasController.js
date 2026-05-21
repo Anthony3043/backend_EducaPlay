@@ -64,10 +64,23 @@ const criarAula = async (req, res) => {
 
     if (!isInterval && professorId) {
       const confProfessor = await prisma.aula.findFirst({
-        where: { professorId, timeStart, timeEnd, isInterval: false },
+        where: {
+          professorId,
+          isInterval: false,
+          timeStart: { lt: timeEnd },
+          timeEnd: { gt: timeStart },
+        },
+        include: { sala: true },
       });
       if (confProfessor) {
-        return res.status(409).json({ error: 'Este professor já está alocado em outro horário neste mesmo período.' });
+        const prof = await prisma.usuario.findUnique({ where: { id: professorId }, select: { nome: true } });
+        const nome = prof?.nome ?? 'O professor';
+        const salaInfo = confProfessor.sala
+          ? ` na sala ${confProfessor.sala.nome}${confProfessor.sala.turma ? ` — ${confProfessor.sala.turma}` : ''}`
+          : '';
+        return res.status(409).json({
+          error: `${nome} já está alocado em outro horário neste período (${confProfessor.timeStart}–${confProfessor.timeEnd}${salaInfo}).`,
+        });
       }
 
       const bloqueio = await prisma.bloqueioHorario.findFirst({
@@ -78,19 +91,32 @@ const criarAula = async (req, res) => {
         },
       });
       if (bloqueio) {
+        const prof = await prisma.usuario.findUnique({ where: { id: professorId }, select: { nome: true } });
+        const nome = prof?.nome ?? 'O professor';
         const local = bloqueio.descricao ? `"${bloqueio.descricao}"` : 'outra escola';
         return res.status(409).json({
-          error: `Professor indisponível neste horário — está em ${local} das ${bloqueio.timeStart} às ${bloqueio.timeEnd}.`,
+          error: `${nome} está indisponível neste horário — está em ${local} das ${bloqueio.timeStart} às ${bloqueio.timeEnd}.`,
         });
       }
     }
 
     if (!isInterval && salaId) {
       const confSala = await prisma.aula.findFirst({
-        where: { salaId, timeStart, timeEnd, isInterval: false },
+        where: {
+          salaId,
+          isInterval: false,
+          timeStart: { lt: timeEnd },
+          timeEnd: { gt: timeStart },
+        },
       });
       if (confSala) {
-        return res.status(409).json({ error: 'Esta sala já está ocupada neste mesmo período.' });
+        const sala = await prisma.sala.findUnique({ where: { id: salaId }, select: { nome: true, turma: true } });
+        const nomeSala = sala
+          ? (sala.turma ? `${sala.nome} — ${sala.turma}` : sala.nome)
+          : 'Esta sala';
+        return res.status(409).json({
+          error: `${nomeSala} já está ocupada neste período (${confSala.timeStart}–${confSala.timeEnd}). Aguarde o término da aula anterior.`,
+        });
       }
     }
 
@@ -119,17 +145,89 @@ const criarAula = async (req, res) => {
 const atualizarAula = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject, timeStart, timeEnd, isInterval, professorId, salaId } = req.body;
+    const { subject, timeStart, timeEnd, professorId, salaId } = req.body;
     const existe = await prisma.aula.findUnique({ where: { id } });
     if (!existe) return res.status(404).json({ error: 'Aula não encontrada.' });
+
+    const novoStart = timeStart ?? existe.timeStart;
+    const novoEnd = timeEnd ?? existe.timeEnd;
+    const novoProfId = professorId !== undefined ? professorId : existe.professorId;
+    const novoSalaId = salaId !== undefined ? salaId : existe.salaId;
+
+    if (!existe.isInterval && novoProfId) {
+      const confProfessor = await prisma.aula.findFirst({
+        where: {
+          id: { not: id },
+          professorId: novoProfId,
+          isInterval: false,
+          timeStart: { lt: novoEnd },
+          timeEnd: { gt: novoStart },
+        },
+        include: { sala: true },
+      });
+      if (confProfessor) {
+        const prof = await prisma.usuario.findUnique({ where: { id: novoProfId }, select: { nome: true } });
+        const nome = prof?.nome ?? 'O professor';
+        const salaInfo = confProfessor.sala
+          ? ` na sala ${confProfessor.sala.nome}${confProfessor.sala.turma ? ` — ${confProfessor.sala.turma}` : ''}`
+          : '';
+        return res.status(409).json({
+          error: `${nome} já está alocado em outro horário neste período (${confProfessor.timeStart}–${confProfessor.timeEnd}${salaInfo}).`,
+        });
+      }
+
+      const bloqueio = await prisma.bloqueioHorario.findFirst({
+        where: {
+          professorId: novoProfId,
+          timeStart: { lt: novoEnd },
+          timeEnd: { gt: novoStart },
+        },
+      });
+      if (bloqueio) {
+        const prof = await prisma.usuario.findUnique({ where: { id: novoProfId }, select: { nome: true } });
+        const nome = prof?.nome ?? 'O professor';
+        const local = bloqueio.descricao ? `"${bloqueio.descricao}"` : 'outra escola';
+        return res.status(409).json({
+          error: `${nome} está indisponível neste horário — está em ${local} das ${bloqueio.timeStart} às ${bloqueio.timeEnd}.`,
+        });
+      }
+    }
+
+    if (!existe.isInterval && novoSalaId) {
+      const confSala = await prisma.aula.findFirst({
+        where: {
+          id: { not: id },
+          salaId: novoSalaId,
+          isInterval: false,
+          timeStart: { lt: novoEnd },
+          timeEnd: { gt: novoStart },
+        },
+      });
+      if (confSala) {
+        const sala = await prisma.sala.findUnique({ where: { id: novoSalaId }, select: { nome: true, turma: true } });
+        const nomeSala = sala
+          ? (sala.turma ? `${sala.nome} — ${sala.turma}` : sala.nome)
+          : 'Esta sala';
+        return res.status(409).json({
+          error: `${nomeSala} já está ocupada neste período (${confSala.timeStart}–${confSala.timeEnd}). Aguarde o término da aula anterior.`,
+        });
+      }
+    }
+
     const aula = await prisma.aula.update({
       where: { id },
-      data: { subject, timeStart, timeEnd, isInterval, professorId, salaId },
+      data: {
+        subject: subject ?? existe.subject,
+        timeStart: novoStart,
+        timeEnd: novoEnd,
+        professorId: novoProfId,
+        salaId: novoSalaId,
+      },
       include: { professor: true, sala: true },
     });
     return res.json({
       ...aula,
-      professor: aula.professor ? { ...aula.professor, materias: JSON.parse(aula.professor.materias) } : null,
+      professor: aula.professor ? { id: aula.professor.id, nome: aula.professor.nome } : null,
     });
   } catch (err) {
     console.error('atualizarAula error:', err);
