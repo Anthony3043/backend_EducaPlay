@@ -22,6 +22,7 @@ router.get('/cronogramas/turno/:turno', auth, c.buscarPorTurno);
 router.post('/cronogramas', auth, c.criar);
 router.post('/aulas', auth, c.criarAula);
 router.put('/aulas/:id', auth, c.atualizarAula);
+router.delete('/aulas/:id', auth, c.deletarAula);
 router.delete('/cronogramas/:id', auth, c.deletar);
 
 // Notificações

@@ -137,6 +137,19 @@ const atualizarAula = async (req, res) => {
   }
 };
 
+const deletarAula = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existe = await prisma.aula.findUnique({ where: { id } });
+    if (!existe) return res.status(404).json({ error: 'Aula não encontrada.' });
+    await prisma.aula.delete({ where: { id } });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('deletarAula error:', err);
+    return res.status(500).json({ error: 'Erro ao deletar aula.' });
+  }
+};
+
 const deletar = async (req, res) => {
   try {
     const existe = await prisma.cronograma.findUnique({ where: { id: req.params.id } });
@@ -149,4 +162,4 @@ const deletar = async (req, res) => {
   }
 };
 
-module.exports = { listar, buscarPorTurno, criar, criarAula, atualizarAula, deletar };
+module.exports = { listar, buscarPorTurno, criar, criarAula, atualizarAula, deletarAula, deletar };

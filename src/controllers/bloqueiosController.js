@@ -23,7 +23,45 @@ const criar = async (req, res) => {
     const bloqueio = await prisma.bloqueioHorario.create({
       data: { professorId: req.usuario.id, timeStart, timeEnd, descricao: descricao || null },
     });
-    return res.status(201).json(bloqueio);
+
+    // Encontra aulas conflitantes deste professor no mesmo período
+    const aulasConflitantes = await prisma.aula.findMany({
+      where: {
+        professorId: req.usuario.id,
+        isInterval: false,
+        timeStart: { lt: timeEnd },
+        timeEnd: { gt: timeStart },
+      },
+      include: { cronograma: true },
+    });
+
+    if (aulasConflitantes.length > 0) {
+      // Remove as aulas conflitantes
+      await prisma.aula.deleteMany({
+        where: { id: { in: aulasConflitantes.map((a) => a.id) } },
+      });
+
+      // Notifica todos os supervisores
+      const supervisores = await prisma.usuario.findMany({
+        where: { papel: 'Supervisao' },
+        select: { id: true },
+      });
+      const local = descricao ? `"${descricao}"` : 'outra escola';
+      for (const aula of aulasConflitantes) {
+        for (const sup of supervisores) {
+          await prisma.notificacao.create({
+            data: {
+              usuarioId: sup.id,
+              titulo: 'Aula removida por conflito',
+              mensagem: `A aula "${aula.subject}" (${aula.timeStart}–${aula.timeEnd}) foi removida pois o professor ficou indisponível — está em ${local}.`,
+              icon: '⚠️',
+            },
+          });
+        }
+      }
+    }
+
+    return res.status(201).json({ bloqueio, aulasRemovidas: aulasConflitantes.length });
   } catch (err) {
     console.error('criar bloqueio error:', err);
     return res.status(500).json({ error: 'Erro ao criar bloqueio.' });

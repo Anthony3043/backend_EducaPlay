@@ -5,7 +5,7 @@ const listar = async (req, res) => {
   try {
     const professores = await prisma.usuario.findMany({
       where: { papel: 'Professor' },
-      select: { id: true, nome: true, cargo: true },
+      select: { id: true, nome: true, cargo: true, foto: true },
       orderBy: { nome: 'asc' },
     });
     return res.json(professores);

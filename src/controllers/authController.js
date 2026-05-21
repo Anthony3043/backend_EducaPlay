@@ -67,13 +67,20 @@ const perfil = async (req, res) => {
 };
 
 const atualizarPerfil = async (req, res) => {
-  const { nome, cargo, instituicao, telefone } = req.body;
-  const usuario = await prisma.usuario.update({
-    where: { id: req.usuario.id },
-    data: { nome, cargo, instituicao },
-    select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true },
-  });
-  return res.json(usuario);
+  try {
+    const { nome, cargo, instituicao, foto } = req.body;
+    const data = { nome, cargo, instituicao };
+    if (foto !== undefined) data.foto = foto;
+    const usuario = await prisma.usuario.update({
+      where: { id: req.usuario.id },
+      data,
+      select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true },
+    });
+    return res.json(usuario);
+  } catch (err) {
+    console.error('atualizarPerfil error:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar perfil.' });
+  }
 };
 
 const checkEmail = async (req, res) => {
