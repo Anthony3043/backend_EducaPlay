@@ -5,7 +5,7 @@ const listar = async (req, res) => {
   try {
     const bloqueios = await prisma.bloqueioHorario.findMany({
       where: { professorId: req.usuario.id },
-      orderBy: { timeStart: 'asc' },
+      orderBy: [{ diaSemana: 'asc' }, { timeStart: 'asc' }],
     });
     return res.json(bloqueios);
   } catch (err) {
@@ -14,17 +14,36 @@ const listar = async (req, res) => {
   }
 };
 
+const listarPorProfessor = async (req, res) => {
+  try {
+    const { professorId } = req.params;
+    const bloqueios = await prisma.bloqueioHorario.findMany({
+      where: { professorId },
+      orderBy: [{ diaSemana: 'asc' }, { timeStart: 'asc' }],
+    });
+    return res.json(bloqueios);
+  } catch (err) {
+    console.error('listarPorProfessor error:', err);
+    return res.status(500).json({ error: 'Erro ao listar bloqueios do professor.' });
+  }
+};
+
 const criar = async (req, res) => {
   try {
-    const { timeStart, timeEnd, descricao } = req.body;
+    const { timeStart, timeEnd, descricao, diaSemana } = req.body;
     if (!timeStart || !timeEnd) {
       return res.status(400).json({ error: 'timeStart e timeEnd são obrigatórios.' });
     }
     const bloqueio = await prisma.bloqueioHorario.create({
-      data: { professorId: req.usuario.id, timeStart, timeEnd, descricao: descricao || null },
+      data: {
+        professorId: req.usuario.id,
+        diaSemana: diaSemana || null,
+        timeStart,
+        timeEnd,
+        descricao: descricao || null,
+      },
     });
 
-    // Encontra aulas conflitantes deste professor no mesmo período
     const aulasConflitantes = await prisma.aula.findMany({
       where: {
         professorId: req.usuario.id,
@@ -36,12 +55,10 @@ const criar = async (req, res) => {
     });
 
     if (aulasConflitantes.length > 0) {
-      // Remove as aulas conflitantes
       await prisma.aula.deleteMany({
         where: { id: { in: aulasConflitantes.map((a) => a.id) } },
       });
 
-      // Notifica todos os supervisores
       const supervisores = await prisma.usuario.findMany({
         where: { papel: 'Supervisao' },
         select: { id: true },
@@ -83,4 +100,4 @@ const deletar = async (req, res) => {
   }
 };
 
-module.exports = { listar, criar, deletar };
+module.exports = { listar, listarPorProfessor, criar, deletar };

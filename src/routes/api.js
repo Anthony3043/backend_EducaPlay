@@ -38,6 +38,7 @@ router.post('/disponibilidade', auth, d.salvar);
 
 // Bloqueios de horário (professor indisponível em outras escolas)
 router.get('/bloqueios', auth, b.listar);
+router.get('/bloqueios/professor/:professorId', auth, b.listarPorProfessor);
 router.post('/bloqueios', auth, b.criar);
 router.delete('/bloqueios/:id', auth, b.deletar);
 

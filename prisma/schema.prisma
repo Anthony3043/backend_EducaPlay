@@ -90,6 +90,7 @@ model Disponibilidade {
 model BloqueioHorario {
   id          String   @id @default(uuid())
   professorId String
+  diaSemana   String?
   timeStart   String
   timeEnd     String
   descricao   String?
