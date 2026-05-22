@@ -88,9 +88,9 @@ const criarAula = async (req, res) => {
         const nome = prof?.nome ?? 'O professor';
         const salaInfo = confProfessor.sala
           ? ` na sala ${confProfessor.sala.nome}${confProfessor.sala.turma ? ` — ${confProfessor.sala.turma}` : ''}`
-          : '';
+          : ' em outra sala';
         return res.status(409).json({
-          error: `${nome} já está alocado em outro horário neste período (${confProfessor.timeStart}–${confProfessor.timeEnd}${salaInfo}).`,
+          error: `Conflito de professor: ${nome} já está dando aula${salaInfo} neste mesmo horário (${confProfessor.timeStart}–${confProfessor.timeEnd}). Um professor não pode estar em duas salas ao mesmo tempo.`,
         });
       }
 
@@ -191,9 +191,9 @@ const atualizarAula = async (req, res) => {
         const nome = prof?.nome ?? 'O professor';
         const salaInfo = confProfessor.sala
           ? ` na sala ${confProfessor.sala.nome}${confProfessor.sala.turma ? ` — ${confProfessor.sala.turma}` : ''}`
-          : '';
+          : ' em outra sala';
         return res.status(409).json({
-          error: `${nome} já está alocado em outro horário neste período (${confProfessor.timeStart}–${confProfessor.timeEnd}${salaInfo}).`,
+          error: `Conflito de professor: ${nome} já está dando aula${salaInfo} neste mesmo horário (${confProfessor.timeStart}–${confProfessor.timeEnd}). Um professor não pode estar em duas salas ao mesmo tempo.`,
         });
       }
 
