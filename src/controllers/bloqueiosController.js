@@ -44,12 +44,16 @@ const criar = async (req, res) => {
       },
     });
 
+    const diaFilter = diaSemana
+      ? { OR: [{ diaSemana: null }, { diaSemana }] }
+      : {};
     const aulasConflitantes = await prisma.aula.findMany({
       where: {
         professorId: req.usuario.id,
         isInterval: false,
         timeStart: { lt: timeEnd },
         timeEnd: { gt: timeStart },
+        ...diaFilter,
       },
       include: { cronograma: true },
     });

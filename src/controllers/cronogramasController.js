@@ -12,6 +12,18 @@ async function notificarProfessor(professorId, titulo, mensagem, icon = '📅') 
   }
 }
 
+// Builds the day-aware conflict filter for Aula
+function diaConflictFilter(diaSemana) {
+  if (!diaSemana) return {};
+  return { OR: [{ diaSemana: null }, { diaSemana }] };
+}
+
+// Builds the day-aware conflict filter for BloqueioHorario
+function diaConflictFilterBloqueio(diaSemana) {
+  if (!diaSemana) return {};
+  return { OR: [{ diaSemana: null }, { diaSemana }] };
+}
+
 const listar = async (req, res) => {
   try {
     const cronogramas = await prisma.cronograma.findMany({
@@ -66,7 +78,7 @@ const criar = async (req, res) => {
 
 const criarAula = async (req, res) => {
   try {
-    const { cronogramaId, timeStart, timeEnd, subject, isInterval, professorId, salaId } = req.body;
+    const { cronogramaId, timeStart, timeEnd, subject, isInterval, professorId, salaId, diaSemana } = req.body;
     if (!cronogramaId || !timeStart || !timeEnd || !subject) {
       return res.status(400).json({ error: 'cronogramaId, timeStart, timeEnd e subject são obrigatórios.' });
     }
@@ -80,6 +92,7 @@ const criarAula = async (req, res) => {
           isInterval: false,
           timeStart: { lt: timeEnd },
           timeEnd: { gt: timeStart },
+          ...diaConflictFilter(diaSemana),
         },
         include: { sala: true },
       });
@@ -99,6 +112,7 @@ const criarAula = async (req, res) => {
           professorId,
           timeStart: { lt: timeEnd },
           timeEnd: { gt: timeStart },
+          ...diaConflictFilterBloqueio(diaSemana),
         },
       });
       if (bloqueio) {
@@ -118,6 +132,7 @@ const criarAula = async (req, res) => {
           isInterval: false,
           timeStart: { lt: timeEnd },
           timeEnd: { gt: timeStart },
+          ...diaConflictFilter(diaSemana),
         },
       });
       if (confSala) {
@@ -137,6 +152,7 @@ const criarAula = async (req, res) => {
         timeStart,
         timeEnd,
         subject,
+        diaSemana: diaSemana || null,
         isInterval: !!isInterval,
         professorId: professorId || null,
         salaId: salaId || null,
@@ -145,10 +161,11 @@ const criarAula = async (req, res) => {
     });
 
     if (professorId && !isInterval) {
+      const diaLabel = diaSemana ? ` (${diaSemana})` : '';
       await notificarProfessor(
         professorId,
         'Nova aula no seu cronograma',
-        `Uma aula de "${subject}" foi adicionada: ${timeStart}–${timeEnd} (turno ${cronograma.turno}).`,
+        `Uma aula de "${subject}" foi adicionada: ${timeStart}–${timeEnd}${diaLabel} (turno ${cronograma.turno}).`,
         '📅'
       );
     }
@@ -166,7 +183,7 @@ const criarAula = async (req, res) => {
 const atualizarAula = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject, timeStart, timeEnd, professorId, salaId } = req.body;
+    const { subject, timeStart, timeEnd, professorId, salaId, diaSemana } = req.body;
     const existe = await prisma.aula.findUnique({ where: { id } });
     if (!existe) return res.status(404).json({ error: 'Aula não encontrada.' });
 
@@ -174,6 +191,7 @@ const atualizarAula = async (req, res) => {
     const novoEnd = timeEnd ?? existe.timeEnd;
     const novoProfId = professorId !== undefined ? professorId : existe.professorId;
     const novoSalaId = salaId !== undefined ? salaId : existe.salaId;
+    const novaDia = diaSemana !== undefined ? (diaSemana || null) : existe.diaSemana;
 
     if (!existe.isInterval && novoProfId) {
       const confProfessor = await prisma.aula.findFirst({
@@ -183,6 +201,7 @@ const atualizarAula = async (req, res) => {
           isInterval: false,
           timeStart: { lt: novoEnd },
           timeEnd: { gt: novoStart },
+          ...diaConflictFilter(novaDia),
         },
         include: { sala: true },
       });
@@ -202,6 +221,7 @@ const atualizarAula = async (req, res) => {
           professorId: novoProfId,
           timeStart: { lt: novoEnd },
           timeEnd: { gt: novoStart },
+          ...diaConflictFilterBloqueio(novaDia),
         },
       });
       if (bloqueio) {
@@ -222,6 +242,7 @@ const atualizarAula = async (req, res) => {
           isInterval: false,
           timeStart: { lt: novoEnd },
           timeEnd: { gt: novoStart },
+          ...diaConflictFilter(novaDia),
         },
       });
       if (confSala) {
@@ -241,6 +262,7 @@ const atualizarAula = async (req, res) => {
         subject: subject ?? existe.subject,
         timeStart: novoStart,
         timeEnd: novoEnd,
+        diaSemana: novaDia,
         professorId: novoProfId,
         salaId: novoSalaId,
       },
@@ -249,7 +271,6 @@ const atualizarAula = async (req, res) => {
 
     if (!existe.isInterval) {
       const nomeMateria = subject ?? existe.subject;
-      // Professor diferente: notifica o novo e o antigo
       if (novoProfId && novoProfId !== existe.professorId) {
         await notificarProfessor(novoProfId, 'Nova aula atribuída a você',
           `A aula de "${nomeMateria}" (${novoStart}–${novoEnd}) foi atribuída ao seu cronograma.`, '📅');
@@ -258,9 +279,8 @@ const atualizarAula = async (req, res) => {
         await notificarProfessor(existe.professorId, 'Você foi removido de uma aula',
           `A aula de "${nomeMateria}" (${existe.timeStart}–${existe.timeEnd}) foi atribuída a outro professor.`, '📋');
       }
-      // Mesmo professor, mas horário ou matéria mudou
       if (novoProfId && novoProfId === existe.professorId) {
-        const mudou = novoStart !== existe.timeStart || novoEnd !== existe.timeEnd || (subject && subject !== existe.subject);
+        const mudou = novoStart !== existe.timeStart || novoEnd !== existe.timeEnd || (subject && subject !== existe.subject) || novaDia !== existe.diaSemana;
         if (mudou) {
           await notificarProfessor(novoProfId, 'Aula modificada no seu cronograma',
             `A aula de "${nomeMateria}" foi alterada para ${novoStart}–${novoEnd}.`, '✏️');
