@@ -32,7 +32,7 @@ const register = async (req, res) => {
 
   return res.status(201).json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, materias: usuario.materias },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias },
   });
 };
 
