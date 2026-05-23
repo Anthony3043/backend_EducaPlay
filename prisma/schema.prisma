@@ -16,6 +16,7 @@ model Usuario {
   instituicao String?
   cargo       String?
   foto        String?
+  materias    String[]
   resetToken     String?
   resetTokenExp  DateTime?
   expoPushToken  String?
