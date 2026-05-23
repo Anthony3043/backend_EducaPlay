@@ -7,7 +7,7 @@ const { enviarEmailRecuperacao } = require('../services/emailService');
 const prisma = new PrismaClient();
 
 const register = async (req, res) => {
-  const { nome, email, senha, papel, instituicao, cargo } = req.body;
+  const { nome, email, senha, papel, instituicao, cargo, materias } = req.body;
 
   if (!nome || !email || !senha || !papel) {
     return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha, papel.' });
@@ -18,7 +18,10 @@ const register = async (req, res) => {
 
   const hash = await bcrypt.hash(senha, 10);
   const usuario = await prisma.usuario.create({
-    data: { nome, email, senha: hash, papel, instituicao, cargo },
+    data: {
+      nome, email, senha: hash, papel, instituicao, cargo,
+      materias: Array.isArray(materias) ? materias : [],
+    },
   });
 
   const token = jwt.sign(
@@ -29,7 +32,7 @@ const register = async (req, res) => {
 
   return res.status(201).json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, materias: usuario.materias },
   });
 };
 
@@ -54,27 +57,28 @@ const login = async (req, res) => {
 
   return res.json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias },
   });
 };
 
 const perfil = async (req, res) => {
   const usuario = await prisma.usuario.findUnique({
     where: { id: req.usuario.id },
-    select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true },
+    select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true },
   });
   return res.json(usuario);
 };
 
 const atualizarPerfil = async (req, res) => {
   try {
-    const { nome, cargo, instituicao, foto } = req.body;
+    const { nome, cargo, instituicao, foto, materias } = req.body;
     const data = { nome, cargo, instituicao };
     if (foto !== undefined) data.foto = foto;
+    if (materias !== undefined) data.materias = Array.isArray(materias) ? materias : [];
     const usuario = await prisma.usuario.update({
       where: { id: req.usuario.id },
       data,
-      select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true },
+      select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true },
     });
     return res.json(usuario);
   } catch (err) {
