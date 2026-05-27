@@ -10,6 +10,7 @@ const b = require('../controllers/bloqueiosController');
 // Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
 router.post('/professores', auth, p.criar);
+router.put('/professores/:id/materias', auth, p.atualizarMaterias);
 router.delete('/professores/:id', auth, p.excluir);
 
 // Salas

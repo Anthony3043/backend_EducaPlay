@@ -83,4 +83,29 @@ const criar = async (req, res) => {
   }
 };
 
-module.exports = { listar, excluir, criar };
+const atualizarMaterias = async (req, res) => {
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Apenas a supervisão pode editar professores.' });
+  }
+  const { id } = req.params;
+  const { materias } = req.body;
+  if (!Array.isArray(materias)) {
+    return res.status(400).json({ error: 'Materias deve ser uma lista.' });
+  }
+  try {
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
+
+    const atualizado = await prisma.usuario.update({
+      where: { id },
+      data: { materias },
+      select: { id: true, nome: true, cargo: true, foto: true, materias: true },
+    });
+    return res.json(atualizado);
+  } catch (err) {
+    console.error('atualizarMaterias error:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar matérias.' });
+  }
+};
+
+module.exports = { listar, excluir, criar, atualizarMaterias };
