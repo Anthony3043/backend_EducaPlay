@@ -9,6 +9,7 @@ const b = require('../controllers/bloqueiosController');
 
 // Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
+router.post('/professores', auth, p.criar);
 router.delete('/professores/:id', auth, p.excluir);
 
 // Salas

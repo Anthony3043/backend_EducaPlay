@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const auth = require('../middlewares/auth');
-const { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta } = require('../controllers/authController');
+const { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta, validarCodigoSupervisao } = require('../controllers/authController');
 
 router.post('/register', register);
+router.post('/validar-codigo-supervisao', validarCodigoSupervisao);
 router.post('/login', login);
 router.post('/check-email', checkEmail);
 router.post('/reset-senha', resetSenha);

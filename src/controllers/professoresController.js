@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 const listar = async (req, res) => {
@@ -47,4 +48,39 @@ const excluir = async (req, res) => {
   }
 };
 
-module.exports = { listar, excluir };
+const criar = async (req, res) => {
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Apenas a supervisão pode cadastrar professores.' });
+  }
+
+  const { nome, email, senha, materias } = req.body;
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
+  }
+
+  try {
+    const supervisao = await prisma.usuario.findUnique({
+      where: { id: req.usuario.id },
+      select: { instituicao: true },
+    });
+
+    const existe = await prisma.usuario.findUnique({ where: { email } });
+    if (existe) return res.status(409).json({ error: 'E-mail já cadastrado.' });
+
+    const hash = await bcrypt.hash(senha, 10);
+    const professor = await prisma.usuario.create({
+      data: {
+        nome, email, senha: hash, papel: 'Professor',
+        instituicao: supervisao?.instituicao ?? null,
+        materias: Array.isArray(materias) ? materias : [],
+      },
+      select: { id: true, nome: true, cargo: true, foto: true, materias: true },
+    });
+    return res.status(201).json(professor);
+  } catch (err) {
+    console.error('criar professor error:', err);
+    return res.status(500).json({ error: 'Erro ao cadastrar professor.' });
+  }
+};
+
+module.exports = { listar, excluir, criar };

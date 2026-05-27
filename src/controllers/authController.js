@@ -7,10 +7,14 @@ const { enviarEmailRecuperacao } = require('../services/emailService');
 const prisma = new PrismaClient();
 
 const register = async (req, res) => {
-  const { nome, email, senha, papel, instituicao, cargo, materias } = req.body;
+  const { nome, email, senha, instituicao, codigoSupervisao } = req.body;
 
-  if (!nome || !email || !senha || !papel) {
-    return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha, papel.' });
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
+  }
+
+  if (!codigoSupervisao || codigoSupervisao !== process.env.CODIGO_SUPERVISAO) {
+    return res.status(403).json({ error: 'Código de supervisão inválido.' });
   }
 
   const existe = await prisma.usuario.findUnique({ where: { email } });
@@ -19,8 +23,8 @@ const register = async (req, res) => {
   const hash = await bcrypt.hash(senha, 10);
   const usuario = await prisma.usuario.create({
     data: {
-      nome, email, senha: hash, papel, instituicao, cargo,
-      materias: Array.isArray(materias) ? materias : [],
+      nome, email, senha: hash, papel: 'Supervisao', instituicao,
+      materias: [],
     },
   });
 
@@ -136,6 +140,14 @@ const resetSenha = async (req, res) => {
   return res.json({ message: 'Senha redefinida com sucesso.' });
 };
 
+const validarCodigoSupervisao = async (req, res) => {
+  const { codigo } = req.body;
+  if (!codigo || codigo !== process.env.CODIGO_SUPERVISAO) {
+    return res.status(403).json({ error: 'Código de supervisão inválido.' });
+  }
+  return res.json({ valido: true });
+};
+
 const deletarConta = async (req, res) => {
   try {
     await prisma.usuario.delete({ where: { id: req.usuario.id } });
@@ -158,4 +170,4 @@ const salvarPushToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta };
+module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta, validarCodigoSupervisao };
