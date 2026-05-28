@@ -139,4 +139,40 @@ const listarPontosSala = async (req, res) => {
   }
 };
 
-module.exports = { registrar, buscarPonto, notificarFalta, listarPontosSala };
+const resumoDia = async (req, res) => {
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Acesso restrito à supervisão.' });
+  }
+  const { diaSemana } = req.query;
+  if (!diaSemana) return res.status(400).json({ error: 'diaSemana é obrigatório.' });
+
+  try {
+    const aulas = await prisma.aula.findMany({
+      where: { diaSemana, professorId: { not: null }, isInterval: false },
+      include: {
+        professor: { select: { id: true, nome: true, expoPushToken: true } },
+        sala: { select: { id: true, nome: true, turma: true } },
+        pontos: { where: { diaSemana } },
+      },
+      orderBy: { timeStart: 'asc' },
+    });
+
+    const resultado = aulas.map((aula) => ({
+      aulaId: aula.id,
+      subject: aula.subject,
+      timeStart: aula.timeStart,
+      timeEnd: aula.timeEnd,
+      professor: aula.professor,
+      sala: aula.sala,
+      pontoBatido: aula.pontos.length > 0,
+      pontoTimestamp: aula.pontos[0]?.timestamp ?? null,
+    }));
+
+    return res.json(resultado);
+  } catch (err) {
+    console.error('resumoDia error:', err);
+    return res.status(500).json({ error: 'Erro ao buscar resumo do dia.' });
+  }
+};
+
+module.exports = { registrar, buscarPonto, notificarFalta, listarPontosSala, resumoDia };

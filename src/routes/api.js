@@ -57,6 +57,7 @@ router.delete('/bloqueios/:id', auth, b.deletar);
 
 // Bater Ponto
 router.post('/ponto', auth, pt.registrar);
+router.get('/ponto/resumo-dia', auth, pt.resumoDia);
 router.get('/ponto/aula/:aulaId', auth, pt.buscarPonto);
 router.get('/ponto', auth, pt.listarPontosSala);
 router.post('/ponto/notificar-falta', auth, pt.notificarFalta);
