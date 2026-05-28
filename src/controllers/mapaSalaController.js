@@ -22,11 +22,11 @@ const buscar = async (req, res) => {
       const capacidadeNum = sala.capacidade ? parseInt(sala.capacidade) : 30;
       const n = isNaN(capacidadeNum) ? 30 : Math.min(Math.max(capacidadeNum, 1), 80);
       const assentos = gerarAssentos(n);
-      const mapa = await prisma.mapaSala.create({ data: { salaId, assentos } });
-      return res.json({ salaId, salaNome: sala.nome, salaTurma: sala.turma, capacidade: sala.capacidade, assentos: mapa.assentos });
+      const mapa = await prisma.mapaSala.create({ data: { salaId, assentos, colunas: 5 } });
+      return res.json({ salaId, salaNome: sala.nome, salaTurma: sala.turma, capacidade: sala.capacidade, assentos: mapa.assentos, colunas: mapa.colunas });
     }
 
-    return res.json({ salaId, salaNome: sala.nome, salaTurma: sala.turma, capacidade: sala.capacidade, assentos: sala.mapa.assentos });
+    return res.json({ salaId, salaNome: sala.nome, salaTurma: sala.turma, capacidade: sala.capacidade, assentos: sala.mapa.assentos, colunas: sala.mapa.colunas });
   } catch (err) {
     console.error('buscar mapa error:', err);
     return res.status(500).json({ error: 'Erro ao buscar mapa da sala.' });
@@ -35,7 +35,7 @@ const buscar = async (req, res) => {
 
 const atualizar = async (req, res) => {
   const { salaId } = req.params;
-  const { assentos } = req.body;
+  const { assentos, colunas } = req.body;
 
   if (req.usuario.papel === 'Professor') {
     const prof = await prisma.usuario.findUnique({
@@ -55,13 +55,18 @@ const atualizar = async (req, res) => {
     const sala = await prisma.sala.findUnique({ where: { id: salaId } });
     if (!sala) return res.status(404).json({ error: 'Sala não encontrada.' });
 
+    const updateData = { assentos };
+    if (typeof colunas === 'number' && colunas >= 1 && colunas <= 10) {
+      updateData.colunas = colunas;
+    }
+
     const mapa = await prisma.mapaSala.upsert({
       where: { salaId },
-      update: { assentos },
-      create: { salaId, assentos },
+      update: updateData,
+      create: { salaId, assentos, colunas: updateData.colunas ?? 5 },
     });
 
-    return res.json({ salaId, assentos: mapa.assentos });
+    return res.json({ salaId, assentos: mapa.assentos, colunas: mapa.colunas });
   } catch (err) {
     console.error('atualizar mapa error:', err);
     return res.status(500).json({ error: 'Erro ao atualizar mapa da sala.' });
@@ -85,10 +90,10 @@ const regenerar = async (req, res) => {
     const mapa = await prisma.mapaSala.upsert({
       where: { salaId },
       update: { assentos },
-      create: { salaId, assentos },
+      create: { salaId, assentos, colunas: 5 },
     });
 
-    return res.json({ salaId, assentos: mapa.assentos });
+    return res.json({ salaId, assentos: mapa.assentos, colunas: mapa.colunas });
   } catch (err) {
     console.error('regenerar mapa error:', err);
     return res.status(500).json({ error: 'Erro ao regenerar mapa.' });

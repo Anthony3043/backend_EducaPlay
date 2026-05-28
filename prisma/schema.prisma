@@ -122,6 +122,7 @@ model MapaSala {
   id        String   @id @default(uuid())
   salaId    String   @unique
   assentos  Json     @default("[]")
+  colunas   Int      @default(5)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
