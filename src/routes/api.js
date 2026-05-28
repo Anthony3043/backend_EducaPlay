@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const multer = require('multer');
 const auth = require('../middlewares/auth');
 const p = require('../controllers/professoresController');
 const s = require('../controllers/salasController');
@@ -9,6 +10,9 @@ const b = require('../controllers/bloqueiosController');
 const ms = require('../controllers/mapaSalaController');
 const pt = require('../controllers/pontoController');
 const cfg = require('../controllers/configuracaoController');
+const up = require('../controllers/uploadController');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
@@ -65,5 +69,8 @@ router.post('/ponto/notificar-falta', auth, pt.notificarFalta);
 // Configuração da escola
 router.get('/configuracao-escola', auth, cfg.buscar);
 router.put('/configuracao-escola', auth, cfg.salvar);
+
+// Upload de arquivos (Object Storage)
+router.post('/upload/foto', auth, upload.single('foto'), up.uploadFoto);
 
 module.exports = router;
