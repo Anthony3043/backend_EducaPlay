@@ -6,18 +6,28 @@ const c = require('../controllers/cronogramasController');
 const n = require('../controllers/notificacoesController');
 const d = require('../controllers/disponibilidadeController');
 const b = require('../controllers/bloqueiosController');
+const ms = require('../controllers/mapaSalaController');
+const pt = require('../controllers/pontoController');
+const cfg = require('../controllers/configuracaoController');
 
 // Professores (usuários com papel Professor)
 router.get('/professores', auth, p.listar);
 router.post('/professores', auth, p.criar);
 router.put('/professores/:id/materias', auth, p.atualizarMaterias);
-router.delete('/professores/:id', auth, p.excluir);
+router.put('/professores/:id/desativar', auth, p.desativar);
+router.put('/professores/:id/reativar', auth, p.reativar);
+router.put('/professores/:id/permissao-mapa', auth, p.atualizarPermissaoMapa);
 
 // Salas
 router.get('/salas', auth, s.listar);
 router.post('/salas', auth, s.criar);
 router.put('/salas/:id', auth, s.atualizar);
 router.delete('/salas/:id', auth, s.deletar);
+
+// Mapa de Sala
+router.get('/salas/:salaId/mapa', auth, ms.buscar);
+router.put('/salas/:salaId/mapa', auth, ms.atualizar);
+router.post('/salas/:salaId/mapa/regenerar', auth, ms.regenerar);
 
 // Cronogramas
 router.get('/cronogramas', auth, c.listar);
@@ -44,5 +54,15 @@ router.get('/bloqueios', auth, b.listar);
 router.get('/bloqueios/professor/:professorId', auth, b.listarPorProfessor);
 router.post('/bloqueios', auth, b.criar);
 router.delete('/bloqueios/:id', auth, b.deletar);
+
+// Bater Ponto
+router.post('/ponto', auth, pt.registrar);
+router.get('/ponto/aula/:aulaId', auth, pt.buscarPonto);
+router.get('/ponto', auth, pt.listarPontosSala);
+router.post('/ponto/notificar-falta', auth, pt.notificarFalta);
+
+// Configuração da escola
+router.get('/configuracao-escola', auth, cfg.buscar);
+router.put('/configuracao-escola', auth, cfg.salvar);
 
 module.exports = router;

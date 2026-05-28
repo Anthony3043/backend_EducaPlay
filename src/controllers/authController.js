@@ -53,6 +53,10 @@ const login = async (req, res) => {
   const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
   if (!senhaCorreta) return res.status(401).json({ error: 'Credenciais inválidas.' });
 
+  if (usuario.ativo === false) {
+    return res.status(403).json({ error: 'Sua conta foi desativada. Entre em contato com a supervisão.' });
+  }
+
   const token = jwt.sign(
     { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel },
     process.env.JWT_SECRET,
@@ -61,14 +65,14 @@ const login = async (req, res) => {
 
   return res.json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias, podeEditarMapaSala: usuario.podeEditarMapaSala },
   });
 };
 
 const perfil = async (req, res) => {
   const usuario = await prisma.usuario.findUnique({
     where: { id: req.usuario.id },
-    select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true },
+    select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true, podeEditarMapaSala: true },
   });
   return res.json(usuario);
 };
@@ -82,7 +86,7 @@ const atualizarPerfil = async (req, res) => {
     const usuario = await prisma.usuario.update({
       where: { id: req.usuario.id },
       data,
-      select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true },
+      select: { id: true, nome: true, email: true, papel: true, cargo: true, instituicao: true, foto: true, materias: true, podeEditarMapaSala: true },
     });
     return res.json(usuario);
   } catch (err) {

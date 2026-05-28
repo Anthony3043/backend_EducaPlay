@@ -6,7 +6,7 @@ const listar = async (req, res) => {
   try {
     const professores = await prisma.usuario.findMany({
       where: { papel: 'Professor' },
-      select: { id: true, nome: true, cargo: true, foto: true, materias: true },
+      select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
       orderBy: { nome: 'asc' },
     });
     return res.json(professores);
@@ -16,35 +16,37 @@ const listar = async (req, res) => {
   }
 };
 
-const excluir = async (req, res) => {
+const desativar = async (req, res) => {
   const { id } = req.params;
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Apenas a supervisão pode desativar professores.' });
+  }
   try {
-    const professor = await prisma.usuario.findFirst({
-      where: { id, papel: 'Professor' },
-    });
-    if (!professor) {
-      return res.status(404).json({ error: 'Professor não encontrado.' });
-    }
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
 
-    // Desvincula aulas que referenciam este professor
-    await prisma.aula.updateMany({
-      where: { professorId: id },
-      data: { professorId: null },
-    });
-
-    // Desvincula disponibilidades criadas por este usuário
-    await prisma.disponibilidade.updateMany({
-      where: { usuarioId: id },
-      data: { usuarioId: null },
-    });
-
-    // Deleta o usuário (BloqueioHorario e Notificacao cascadeiam automaticamente)
-    await prisma.usuario.delete({ where: { id } });
-
-    return res.json({ mensagem: 'Professor excluído com sucesso.' });
+    await prisma.usuario.update({ where: { id }, data: { ativo: false } });
+    return res.json({ mensagem: 'Professor desativado com sucesso.' });
   } catch (err) {
-    console.error('excluir professor error:', err);
-    return res.status(500).json({ error: 'Erro ao excluir professor.' });
+    console.error('desativar professor error:', err);
+    return res.status(500).json({ error: 'Erro ao desativar professor.' });
+  }
+};
+
+const reativar = async (req, res) => {
+  const { id } = req.params;
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Apenas a supervisão pode reativar professores.' });
+  }
+  try {
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
+
+    await prisma.usuario.update({ where: { id }, data: { ativo: true } });
+    return res.json({ mensagem: 'Professor reativado com sucesso.' });
+  } catch (err) {
+    console.error('reativar professor error:', err);
+    return res.status(500).json({ error: 'Erro ao reativar professor.' });
   }
 };
 
@@ -74,7 +76,7 @@ const criar = async (req, res) => {
         instituicao: supervisao?.instituicao ?? null,
         materias: Array.isArray(materias) ? materias : [],
       },
-      select: { id: true, nome: true, cargo: true, foto: true, materias: true },
+      select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
     });
     return res.status(201).json(professor);
   } catch (err) {
@@ -99,7 +101,7 @@ const atualizarMaterias = async (req, res) => {
     const atualizado = await prisma.usuario.update({
       where: { id },
       data: { materias },
-      select: { id: true, nome: true, cargo: true, foto: true, materias: true },
+      select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
     });
     return res.json(atualizado);
   } catch (err) {
@@ -108,4 +110,26 @@ const atualizarMaterias = async (req, res) => {
   }
 };
 
-module.exports = { listar, excluir, criar, atualizarMaterias };
+const atualizarPermissaoMapa = async (req, res) => {
+  if (req.usuario.papel !== 'Supervisao') {
+    return res.status(403).json({ error: 'Apenas a supervisão pode alterar permissões.' });
+  }
+  const { id } = req.params;
+  const { podeEditarMapaSala } = req.body;
+  try {
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
+
+    const atualizado = await prisma.usuario.update({
+      where: { id },
+      data: { podeEditarMapaSala: Boolean(podeEditarMapaSala) },
+      select: { id: true, podeEditarMapaSala: true },
+    });
+    return res.json(atualizado);
+  } catch (err) {
+    console.error('atualizarPermissaoMapa error:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar permissão.' });
+  }
+};
+
+module.exports = { listar, desativar, reativar, criar, atualizarMaterias, atualizarPermissaoMapa };

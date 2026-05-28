@@ -20,13 +20,16 @@ model Usuario {
   resetToken     String?
   resetTokenExp  DateTime?
   expoPushToken  String?
+  ativo              Boolean  @default(true)
+  podeEditarMapaSala Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  disponibilidades Disponibilidade[]
-  notificacoes     Notificacao[]
-  aulas            Aula[]             @relation("AulaProfessor")
-  bloqueios        BloqueioHorario[]  @relation("BloqueiosProfessor")
+  disponibilidades  Disponibilidade[]
+  notificacoes      Notificacao[]
+  aulas             Aula[]             @relation("AulaProfessor")
+  bloqueios         BloqueioHorario[]  @relation("BloqueiosProfessor")
+  pontosRegistrados BaterPonto[]       @relation("PontoProfessor")
 }
 
 model Professor {
@@ -48,6 +51,7 @@ model Sala {
   updatedAt  DateTime @updatedAt
 
   aulas Aula[]
+  mapa  MapaSala?
 }
 
 model Cronograma {
@@ -75,6 +79,7 @@ model Aula {
   cronograma Cronograma @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
   professor  Usuario?   @relation("AulaProfessor", fields: [professorId], references: [id])
   sala       Sala?      @relation(fields: [salaId], references: [id])
+  pontos     BaterPonto[]
 }
 
 model Disponibilidade {
@@ -111,4 +116,36 @@ model Notificacao {
   createdAt DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model MapaSala {
+  id        String   @id @default(uuid())
+  salaId    String   @unique
+  assentos  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sala Sala @relation(fields: [salaId], references: [id], onDelete: Cascade)
+}
+
+model BaterPonto {
+  id          String   @id @default(uuid())
+  professorId String
+  aulaId      String
+  diaSemana   String
+  latitude    Float
+  longitude   Float
+  timestamp   DateTime @default(now())
+
+  professor Usuario @relation("PontoProfessor", fields: [professorId], references: [id], onDelete: Cascade)
+  aula      Aula    @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+}
+
+model ConfiguracaoEscola {
+  id        String   @id @default(uuid())
+  latitude  Float    @default(0)
+  longitude Float    @default(0)
+  raio      Float    @default(200)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
