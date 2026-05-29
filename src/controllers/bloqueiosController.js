@@ -34,6 +34,12 @@ const criar = async (req, res) => {
     if (!timeStart || !timeEnd) {
       return res.status(400).json({ error: 'timeStart e timeEnd são obrigatórios.' });
     }
+    if (timeStart < '07:00') {
+      return res.status(400).json({ error: 'O horário de início não pode ser antes das 07:00, pois as aulas começam a partir desta hora.' });
+    }
+    if (timeEnd <= timeStart) {
+      return res.status(400).json({ error: 'O horário de término deve ser após o horário de início.' });
+    }
     const bloqueio = await prisma.bloqueioHorario.create({
       data: {
         professorId: req.usuario.id,
