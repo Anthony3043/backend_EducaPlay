@@ -202,4 +202,72 @@ const substituir = async (req, res) => {
   }
 };
 
-module.exports = { enviar, recentes, substituir };
+// Retorna professores disponíveis para substituir (sem conflito de horário)
+const professoresDisponiveis = async (req, res) => {
+  try {
+    if (req.usuario.papel !== 'Supervisao') {
+      return res.status(403).json({ error: 'Acesso restrito à supervisão.' });
+    }
+
+    const { professorAbsenteId, diaSemana, horarioChegada } = req.query;
+    if (!professorAbsenteId || !diaSemana) {
+      return res.status(400).json({ error: 'professorAbsenteId e diaSemana são obrigatórios.' });
+    }
+
+    // Busca as aulas que precisam ser cobertas (aulas do professor ausente)
+    const aulasAusente = await prisma.aula.findMany({
+      where: { professorId: professorAbsenteId, diaSemana, isInterval: false },
+      select: { timeStart: true, timeEnd: true },
+    });
+
+    // Filtra pelo horário de chegada se for atraso
+    const aulasAlvo = horarioChegada
+      ? aulasAusente.filter(a => a.timeStart < horarioChegada)
+      : aulasAusente;
+
+    if (aulasAlvo.length === 0) {
+      // Nenhuma aula para cobrir — retorna todos os professores ativos exceto o ausente
+      const todos = await prisma.usuario.findMany({
+        where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId } },
+        select: { id: true, nome: true, foto: true, materias: true },
+      });
+      return res.json(todos);
+    }
+
+    // Descobre quais professores JÁ têm aulas naqueles horários (conflito)
+    const horarios = aulasAlvo.map(a => ({ timeStart: a.timeStart, timeEnd: a.timeEnd }));
+
+    // Professores com conflito: têm aula no mesmo dia em qualquer um dos horários a cobrir
+    const comConflito = await prisma.aula.findMany({
+      where: {
+        diaSemana,
+        isInterval: false,
+        professorId: { not: professorAbsenteId, not: null },
+        OR: horarios.map(h => ({
+          AND: [
+            { timeStart: { lt: h.timeEnd } },
+            { timeEnd: { gt: h.timeStart } },
+          ],
+        })),
+      },
+      select: { professorId: true },
+      distinct: ['professorId'],
+    });
+
+    const idsComConflito = new Set(comConflito.map(a => a.professorId).filter(Boolean));
+
+    // Retorna professores ativos sem conflito
+    const todos = await prisma.usuario.findMany({
+      where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId } },
+      select: { id: true, nome: true, foto: true, materias: true },
+    });
+
+    const disponiveis = todos.filter(p => !idsComConflito.has(p.id));
+    return res.json(disponiveis);
+  } catch (err) {
+    console.error('avisosProfessor.professoresDisponiveis error:', err);
+    return res.status(500).json({ error: 'Erro ao buscar professores disponíveis.' });
+  }
+};
+
+module.exports = { enviar, recentes, substituir, professoresDisponiveis };
