@@ -162,60 +162,47 @@ const recentes = async (req, res) => {
   }
 };
 
-// Supervisão substitui um professor APENAS para o dia de hoje (sem alterar cronograma permanente)
+// Supervisão substitui — aceita array { substituicoes: [{ aulaId, professorSubstitutoId, professorOriginalId }] }
 const substituir = async (req, res) => {
   try {
     if (req.usuario.papel !== 'Supervisao') {
       return res.status(403).json({ error: 'Apenas supervisão pode substituir professores.' });
     }
 
-    const { professorAbsenteId, professorSubstitutoId, diaSemana, horarioChegada } = req.body;
+    const { substituicoes } = req.body;
 
-    if (!professorAbsenteId || !professorSubstitutoId || !diaSemana) {
-      return res.status(400).json({ error: 'professorAbsenteId, professorSubstitutoId e diaSemana são obrigatórios.' });
+    if (!Array.isArray(substituicoes) || substituicoes.length === 0) {
+      return res.status(400).json({ error: 'substituicoes deve ser um array não vazio.' });
     }
 
-    // Data de hoje no formato YYYY-MM-DD
     const hoje = new Date().toISOString().split('T')[0];
 
-    // Busca aulas do professor ausente naquele dia
-    const aulas = await prisma.aula.findMany({
-      where: { professorId: professorAbsenteId, diaSemana, isInterval: false },
-    });
-
-    // Filtra pelo horário de chegada (atraso: só antes da chegada)
-    const aulasAlvo = horarioChegada
-      ? aulas.filter(a => a.timeStart < horarioChegada)
-      : aulas;
-
-    if (aulasAlvo.length === 0) {
-      return res.json({ ok: true, aulasSubstituidas: 0 });
-    }
-
-    // Cria SubstituicaoTemporaria para cada aula — NÃO altera o professorId permanente
     await Promise.all(
-      aulasAlvo.map(aula =>
-        prisma.substituicaoTemporaria.upsert({
-          where: { aulaId_data: { aulaId: aula.id, data: hoje } },
-          create: {
-            aulaId: aula.id,
-            data: hoje,
-            professorOriginalId: professorAbsenteId,
-            professorSubstitutoId,
-          },
-          update: { professorSubstitutoId },
-        })
-      )
+      substituicoes
+        .filter(s => s.professorSubstitutoId) // só onde escolheram um substituto
+        .map(s =>
+          prisma.substituicaoTemporaria.upsert({
+            where: { aulaId_data: { aulaId: s.aulaId, data: hoje } },
+            create: {
+              aulaId: s.aulaId,
+              data: hoje,
+              professorOriginalId: s.professorOriginalId,
+              professorSubstitutoId: s.professorSubstitutoId,
+            },
+            update: { professorSubstitutoId: s.professorSubstitutoId },
+          })
+        )
     );
 
-    return res.json({ ok: true, aulasSubstituidas: aulasAlvo.length, data: hoje });
+    const count = substituicoes.filter(s => s.professorSubstitutoId).length;
+    return res.json({ ok: true, aulasSubstituidas: count, data: hoje });
   } catch (err) {
     console.error('avisosProfessor.substituir error:', err);
     return res.status(500).json({ error: 'Não foi possível realizar a substituição.' });
   }
 };
 
-// Retorna professores disponíveis para substituir (sem conflito de horário)
+// Retorna AULAS do professor ausente com professores disponíveis POR HORÁRIO
 const professoresDisponiveis = async (req, res) => {
   try {
     if (req.usuario.papel !== 'Supervisao') {
@@ -227,56 +214,53 @@ const professoresDisponiveis = async (req, res) => {
       return res.status(400).json({ error: 'professorAbsenteId e diaSemana são obrigatórios.' });
     }
 
-    // Busca as aulas que precisam ser cobertas (aulas do professor ausente)
-    const aulasAusente = await prisma.aula.findMany({
+    // Aulas do professor ausente naquele dia
+    let aulasAlvo = await prisma.aula.findMany({
       where: { professorId: professorAbsenteId, diaSemana, isInterval: false },
-      select: { timeStart: true, timeEnd: true },
+      select: { id: true, timeStart: true, timeEnd: true, subject: true },
+      orderBy: { timeStart: 'asc' },
     });
 
-    // Filtra pelo horário de chegada se for atraso
-    const aulasAlvo = horarioChegada
-      ? aulasAusente.filter(a => a.timeStart < horarioChegada)
-      : aulasAusente;
-
-    if (aulasAlvo.length === 0) {
-      // Nenhuma aula para cobrir — retorna todos os professores ativos exceto o ausente
-      const todos = await prisma.usuario.findMany({
-        where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId } },
-        select: { id: true, nome: true, foto: true, materias: true },
-      });
-      return res.json(todos);
+    // Atraso: só aulas ANTES do horário de chegada
+    if (horarioChegada) {
+      aulasAlvo = aulasAlvo.filter(a => a.timeStart < horarioChegada);
     }
 
-    // Descobre quais professores JÁ têm aulas naqueles horários (conflito)
-    const horarios = aulasAlvo.map(a => ({ timeStart: a.timeStart, timeEnd: a.timeEnd }));
+    if (aulasAlvo.length === 0) return res.json([]);
 
-    // Professores com conflito: têm aula no mesmo dia em qualquer um dos horários a cobrir
-    const comConflito = await prisma.aula.findMany({
-      where: {
-        diaSemana,
-        isInterval: false,
-        professorId: { not: professorAbsenteId, not: null },
-        OR: horarios.map(h => ({
-          AND: [
-            { timeStart: { lt: h.timeEnd } },
-            { timeEnd: { gt: h.timeStart } },
-          ],
-        })),
-      },
-      select: { professorId: true },
-      distinct: ['professorId'],
-    });
-
-    const idsComConflito = new Set(comConflito.map(a => a.professorId).filter(Boolean));
-
-    // Retorna professores ativos sem conflito
-    const todos = await prisma.usuario.findMany({
+    // Busca todos os professores ativos (exceto o ausente)
+    const todosProfessores = await prisma.usuario.findMany({
       where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId } },
       select: { id: true, nome: true, foto: true, materias: true },
     });
 
-    const disponiveis = todos.filter(p => !idsComConflito.has(p.id));
-    return res.json(disponiveis);
+    // Para cada aula, descobre quais professores têm conflito naquele horário específico
+    const resultado = await Promise.all(aulasAlvo.map(async aula => {
+      const comConflito = await prisma.aula.findMany({
+        where: {
+          diaSemana,
+          isInterval: false,
+          professorId: { not: professorAbsenteId },
+          timeStart: { lt: aula.timeEnd },
+          timeEnd: { gt: aula.timeStart },
+          professor: { isNot: null },
+        },
+        select: { professorId: true },
+        distinct: ['professorId'],
+      });
+
+      const idsOcupados = new Set(comConflito.map(a => a.professorId).filter(Boolean));
+
+      return {
+        aulaId: aula.id,
+        timeStart: aula.timeStart,
+        timeEnd: aula.timeEnd,
+        subject: aula.subject,
+        professoresDisponiveis: todosProfessores.filter(p => !idsOcupados.has(p.id)),
+      };
+    }));
+
+    return res.json(resultado);
   } catch (err) {
     console.error('avisosProfessor.professoresDisponiveis error:', err);
     return res.status(500).json({ error: 'Erro ao buscar professores disponíveis.' });
