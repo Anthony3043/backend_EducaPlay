@@ -25,11 +25,13 @@ model Usuario {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  disponibilidades  Disponibilidade[]
-  notificacoes      Notificacao[]
-  aulas             Aula[]             @relation("AulaProfessor")
-  bloqueios         BloqueioHorario[]  @relation("BloqueiosProfessor")
-  pontosRegistrados BaterPonto[]       @relation("PontoProfessor")
+  disponibilidades            Disponibilidade[]
+  notificacoes                Notificacao[]
+  aulas                       Aula[]                   @relation("AulaProfessor")
+  bloqueios                   BloqueioHorario[]        @relation("BloqueiosProfessor")
+  pontosRegistrados           BaterPonto[]             @relation("PontoProfessor")
+  substituicoesComoOriginal   SubstituicaoTemporaria[] @relation("SubstOriginal")
+  substituicoesComoSubstituto SubstituicaoTemporaria[] @relation("SubstSubstituto")
 }
 
 model Professor {
@@ -76,10 +78,11 @@ model Aula {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  cronograma Cronograma @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
-  professor  Usuario?   @relation("AulaProfessor", fields: [professorId], references: [id])
-  sala       Sala?      @relation(fields: [salaId], references: [id])
-  pontos     BaterPonto[]
+  cronograma     Cronograma             @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
+  professor      Usuario?               @relation("AulaProfessor", fields: [professorId], references: [id])
+  sala           Sala?                  @relation(fields: [salaId], references: [id])
+  pontos         BaterPonto[]
+  substituicoes  SubstituicaoTemporaria[]
 }
 
 model Disponibilidade {
@@ -149,5 +152,21 @@ model ConfiguracaoEscola {
   raio      Float    @default(200)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Substituição temporária para UM dia específico (sem alterar o cronograma permanente)
+model SubstituicaoTemporaria {
+  id                    String   @id @default(uuid())
+  aulaId                String
+  data                  String   // "YYYY-MM-DD" — dia específico da substituição
+  professorOriginalId   String
+  professorSubstitutoId String
+  createdAt             DateTime @default(now())
+
+  aula                Aula    @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  professorOriginal   Usuario @relation("SubstOriginal",    fields: [professorOriginalId],   references: [id], onDelete: Cascade)
+  professorSubstituto Usuario @relation("SubstSubstituto",  fields: [professorSubstitutoId], references: [id], onDelete: Cascade)
+
+  @@unique([aulaId, data])
 }
 

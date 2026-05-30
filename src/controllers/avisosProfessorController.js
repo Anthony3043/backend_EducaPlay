@@ -162,7 +162,7 @@ const recentes = async (req, res) => {
   }
 };
 
-// Supervisão substitui um professor manualmente
+// Supervisão substitui um professor APENAS para o dia de hoje (sem alterar cronograma permanente)
 const substituir = async (req, res) => {
   try {
     if (req.usuario.papel !== 'Supervisao') {
@@ -175,27 +175,40 @@ const substituir = async (req, res) => {
       return res.status(400).json({ error: 'professorAbsenteId, professorSubstitutoId e diaSemana são obrigatórios.' });
     }
 
+    // Data de hoje no formato YYYY-MM-DD
+    const hoje = new Date().toISOString().split('T')[0];
+
     // Busca aulas do professor ausente naquele dia
     const aulas = await prisma.aula.findMany({
       where: { professorId: professorAbsenteId, diaSemana, isInterval: false },
     });
 
-    // Se horarioChegada informado: substitui só aulas antes da chegada
-    let aulasAlvo = aulas;
-    if (horarioChegada) {
-      aulasAlvo = aulas.filter(a => a.timeStart < horarioChegada);
-    }
+    // Filtra pelo horário de chegada (atraso: só antes da chegada)
+    const aulasAlvo = horarioChegada
+      ? aulas.filter(a => a.timeStart < horarioChegada)
+      : aulas;
 
     if (aulasAlvo.length === 0) {
-      return res.json({ ok: true, aulasSubstituidas: 0, msg: 'Nenhuma aula encontrada para substituir.' });
+      return res.json({ ok: true, aulasSubstituidas: 0 });
     }
 
-    await prisma.aula.updateMany({
-      where: { id: { in: aulasAlvo.map(a => a.id) } },
-      data: { professorId: professorSubstitutoId },
-    });
+    // Cria SubstituicaoTemporaria para cada aula — NÃO altera o professorId permanente
+    await Promise.all(
+      aulasAlvo.map(aula =>
+        prisma.substituicaoTemporaria.upsert({
+          where: { aulaId_data: { aulaId: aula.id, data: hoje } },
+          create: {
+            aulaId: aula.id,
+            data: hoje,
+            professorOriginalId: professorAbsenteId,
+            professorSubstitutoId,
+          },
+          update: { professorSubstitutoId },
+        })
+      )
+    );
 
-    return res.json({ ok: true, aulasSubstituidas: aulasAlvo.length });
+    return res.json({ ok: true, aulasSubstituidas: aulasAlvo.length, data: hoje });
   } catch (err) {
     console.error('avisosProfessor.substituir error:', err);
     return res.status(500).json({ error: 'Não foi possível realizar a substituição.' });

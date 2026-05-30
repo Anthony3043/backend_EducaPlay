@@ -24,19 +24,44 @@ function diaConflictFilterBloqueio(diaSemana) {
   return { OR: [{ diaSemana: null }, { diaSemana }] };
 }
 
+// Aplica substituições temporárias de hoje nas aulas
+async function aplicarSubstituicoes(aulas) {
+  const hoje = new Date().toISOString().split('T')[0];
+  const aulaIds = aulas.map(a => a.id);
+  if (aulaIds.length === 0) return aulas;
+
+  const subs = await prisma.substituicaoTemporaria.findMany({
+    where: { aulaId: { in: aulaIds }, data: hoje },
+    include: { professorSubstituto: { select: { id: true, nome: true, foto: true } } },
+  });
+
+  const subMap = new Map(subs.map(s => [s.aulaId, s.professorSubstituto]));
+
+  return aulas.map(a => {
+    const sub = subMap.get(a.id);
+    if (!sub) return a;
+    return { ...a, professor: sub, substitutoHoje: true };
+  });
+}
+
 const listar = async (req, res) => {
   try {
     const cronogramas = await prisma.cronograma.findMany({
       include: { aulas: { include: { professor: true, sala: true }, orderBy: { timeStart: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
-    return res.json(cronogramas.map(c => ({
+
+    const result = await Promise.all(cronogramas.map(async c => ({
       ...c,
-      aulas: c.aulas.map(a => ({
-        ...a,
-        professor: a.professor ? { id: a.professor.id, nome: a.professor.nome } : null,
-      })),
+      aulas: await aplicarSubstituicoes(
+        c.aulas.map(a => ({
+          ...a,
+          professor: a.professor ? { id: a.professor.id, nome: a.professor.nome, foto: a.professor.foto } : null,
+        }))
+      ),
     })));
+
+    return res.json(result);
   } catch (err) {
     console.error('listar error:', err);
     return res.status(500).json({ error: 'Erro ao listar cronogramas.' });
