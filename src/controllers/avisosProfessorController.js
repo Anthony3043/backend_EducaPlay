@@ -162,4 +162,44 @@ const recentes = async (req, res) => {
   }
 };
 
-module.exports = { enviar, recentes };
+// Supervisão substitui um professor manualmente
+const substituir = async (req, res) => {
+  try {
+    if (req.usuario.papel !== 'Supervisao') {
+      return res.status(403).json({ error: 'Apenas supervisão pode substituir professores.' });
+    }
+
+    const { professorAbsenteId, professorSubstitutoId, diaSemana, horarioChegada } = req.body;
+
+    if (!professorAbsenteId || !professorSubstitutoId || !diaSemana) {
+      return res.status(400).json({ error: 'professorAbsenteId, professorSubstitutoId e diaSemana são obrigatórios.' });
+    }
+
+    // Busca aulas do professor ausente naquele dia
+    const aulas = await prisma.aula.findMany({
+      where: { professorId: professorAbsenteId, diaSemana, isInterval: false },
+    });
+
+    // Se horarioChegada informado: substitui só aulas antes da chegada
+    let aulasAlvo = aulas;
+    if (horarioChegada) {
+      aulasAlvo = aulas.filter(a => a.timeStart < horarioChegada);
+    }
+
+    if (aulasAlvo.length === 0) {
+      return res.json({ ok: true, aulasSubstituidas: 0, msg: 'Nenhuma aula encontrada para substituir.' });
+    }
+
+    await prisma.aula.updateMany({
+      where: { id: { in: aulasAlvo.map(a => a.id) } },
+      data: { professorId: professorSubstitutoId },
+    });
+
+    return res.json({ ok: true, aulasSubstituidas: aulasAlvo.length });
+  } catch (err) {
+    console.error('avisosProfessor.substituir error:', err);
+    return res.status(500).json({ error: 'Não foi possível realizar a substituição.' });
+  }
+};
+
+module.exports = { enviar, recentes, substituir };

@@ -75,7 +75,8 @@ router.put('/configuracao-escola', auth, cfg.salvar);
 router.post('/upload/foto', auth, upload.single('foto'), up.uploadFoto);
 
 // Avisos de atraso/ausência do professor
-router.post('/avisos-professor',          auth, av.enviar);
-router.get('/avisos-professor/recentes',  auth, av.recentes);
+router.post('/avisos-professor',             auth, av.enviar);
+router.get('/avisos-professor/recentes',     auth, av.recentes);
+router.post('/avisos-professor/substituir',  auth, av.substituir);
 
 module.exports = router;
