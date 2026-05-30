@@ -1,0 +1,324 @@
+# ════════════════════════════════════════════════════════════
+#  EducaPlay API — REST Client Tests
+#  Extensão: REST Client (humao.rest-client)
+#  Uso: Ctrl+Click em "Send Request" acima de cada bloco
+# ════════════════════════════════════════════════════════════
+
+@baseUrl = http://localhost:3000
+@token = COLE_SEU_TOKEN_AQUI
+
+# ── AUTH ────────────────────────────────────────────────────
+
+### Login (Supervisor)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "supervisor@escola.com",
+  "senha": "123456"
+}
+
+### Usar token do login automaticamente
+@authToken = {{login.response.body.token}}
+
+### Register (Supervisão)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "nome": "Supervisor Teste",
+  "email": "supervisor2@escola.com",
+  "senha": "senha123",
+  "papel": "Supervisao",
+  "instituicao": "Escola Teste",
+  "codigoSupervisao": "CODIGO_AQUI"
+}
+
+### Validar código de supervisão
+POST {{baseUrl}}/auth/validar-codigo-supervisao
+Content-Type: application/json
+
+{
+  "codigo": "CODIGO_AQUI"
+}
+
+### Perfil autenticado
+GET {{baseUrl}}/auth/perfil
+Authorization: Bearer {{token}}
+
+### Atualizar perfil
+PUT {{baseUrl}}/auth/perfil
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Novo Nome",
+  "instituicao": "Escola Nova"
+}
+
+# ── PROFESSORES ─────────────────────────────────────────────
+
+### Listar todos os professores
+GET {{baseUrl}}/professores
+Authorization: Bearer {{token}}
+
+### Criar professor
+POST {{baseUrl}}/professores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Prof. João Silva",
+  "email": "joao@escola.com",
+  "senha": "senha123"
+}
+
+### Atualizar matérias do professor
+PUT {{baseUrl}}/professores/PROFESSOR_ID/materias
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "materias": ["Matemática", "Física"]
+}
+
+### Desativar professor
+PUT {{baseUrl}}/professores/PROFESSOR_ID/desativar
+Authorization: Bearer {{token}}
+
+### Reativar professor
+PUT {{baseUrl}}/professores/PROFESSOR_ID/reativar
+Authorization: Bearer {{token}}
+
+### Atualizar permissão mapa de sala
+PUT {{baseUrl}}/professores/PROFESSOR_ID/permissao-mapa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "podeEditarMapaSala": true
+}
+
+# ── SALAS ───────────────────────────────────────────────────
+
+### Listar salas
+GET {{baseUrl}}/salas
+Authorization: Bearer {{token}}
+
+### Criar sala
+POST {{baseUrl}}/salas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Sala 01",
+  "turma": "3° A",
+  "capacidade": "35"
+}
+
+### Atualizar sala
+PUT {{baseUrl}}/salas/SALA_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Sala 02",
+  "turma": "3° B",
+  "capacidade": "30"
+}
+
+### Deletar sala
+DELETE {{baseUrl}}/salas/SALA_ID
+Authorization: Bearer {{token}}
+
+# ── MAPA DE SALA ────────────────────────────────────────────
+
+### Buscar mapa da sala
+GET {{baseUrl}}/salas/SALA_ID/mapa
+Authorization: Bearer {{token}}
+
+### Atualizar mapa da sala
+PUT {{baseUrl}}/salas/SALA_ID/mapa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "colunas": 5,
+  "assentos": [
+    { "id": "ASSENTO_ID", "numero": 1, "nome": "João" },
+    { "id": "ASSENTO_ID_2", "numero": 2, "nome": null }
+  ]
+}
+
+### Regenerar mapa da sala
+POST {{baseUrl}}/salas/SALA_ID/mapa/regenerar
+Authorization: Bearer {{token}}
+
+# ── CRONOGRAMAS / AULAS ─────────────────────────────────────
+
+### Listar cronogramas
+GET {{baseUrl}}/cronogramas
+Authorization: Bearer {{token}}
+
+### Listar por turno
+GET {{baseUrl}}/cronogramas/turno/matutino
+Authorization: Bearer {{token}}
+
+### Criar cronograma
+POST {{baseUrl}}/cronogramas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "turno": "matutino"
+}
+
+### Criar aula
+POST {{baseUrl}}/aulas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cronogramaId": "CRONOGRAMA_ID",
+  "timeStart": "07:00",
+  "timeEnd": "07:45",
+  "subject": "Matemática",
+  "professorId": "PROFESSOR_ID",
+  "salaId": "SALA_ID",
+  "isInterval": false,
+  "diaSemana": "Segunda"
+}
+
+### Atualizar aula
+PUT {{baseUrl}}/aulas/AULA_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "subject": "Física",
+  "professorId": "PROFESSOR_ID",
+  "diaSemana": "Terça"
+}
+
+### Deletar aula
+DELETE {{baseUrl}}/aulas/AULA_ID
+Authorization: Bearer {{token}}
+
+### Deletar cronograma
+DELETE {{baseUrl}}/cronogramas/CRONOGRAMA_ID
+Authorization: Bearer {{token}}
+
+# ── BLOQUEIOS (Indisponibilidade do professor) ──────────────
+
+### Listar meus bloqueios
+GET {{baseUrl}}/bloqueios
+Authorization: Bearer {{token}}
+
+### Listar bloqueios de professor específico
+GET {{baseUrl}}/bloqueios/professor/PROFESSOR_ID
+Authorization: Bearer {{token}}
+
+### Criar bloqueio
+POST {{baseUrl}}/bloqueios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "diaSemana": "Segunda",
+  "timeStart": "07:00",
+  "timeEnd": "09:00",
+  "descricao": "Outra escola"
+}
+
+### Deletar bloqueio
+DELETE {{baseUrl}}/bloqueios/BLOQUEIO_ID
+Authorization: Bearer {{token}}
+
+# ── PONTO ───────────────────────────────────────────────────
+
+### Registrar ponto (com GPS)
+POST {{baseUrl}}/ponto
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "aulaId": "AULA_ID",
+  "diaSemana": "Segunda",
+  "latitude": -23.5505,
+  "longitude": -46.6333
+}
+
+### Resumo do dia (supervisão)
+GET {{baseUrl}}/ponto/resumo-dia?diaSemana=Segunda
+Authorization: Bearer {{token}}
+
+### Buscar ponto de uma aula
+GET {{baseUrl}}/ponto/aula/AULA_ID?diaSemana=Segunda
+Authorization: Bearer {{token}}
+
+### Notificar falta de ponto
+POST {{baseUrl}}/ponto/notificar-falta
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "aulaId": "AULA_ID",
+  "diaSemana": "Segunda"
+}
+
+# ── NOTIFICAÇÕES ────────────────────────────────────────────
+
+### Listar notificações
+GET {{baseUrl}}/notificacoes
+Authorization: Bearer {{token}}
+
+### Marcar todas como lidas
+PATCH {{baseUrl}}/notificacoes/todas/lidas
+Authorization: Bearer {{token}}
+
+### Marcar uma como lida
+PATCH {{baseUrl}}/notificacoes/NOTIF_ID/lida
+Authorization: Bearer {{token}}
+
+### Deletar notificação
+DELETE {{baseUrl}}/notificacoes/NOTIF_ID
+Authorization: Bearer {{token}}
+
+### Limpar todas as notificações
+DELETE {{baseUrl}}/notificacoes
+Authorization: Bearer {{token}}
+
+# ── CONFIGURAÇÃO DA ESCOLA ───────────────────────────────────
+
+### Buscar configuração
+GET {{baseUrl}}/configuracao-escola
+Authorization: Bearer {{token}}
+
+### Salvar localização da escola
+PUT {{baseUrl}}/configuracao-escola
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "latitude": -23.5505,
+  "longitude": -46.6333,
+  "raio": 200
+}
+
+# ── AVISOS PROFESSOR (atraso/ausência) ───────────────────────
+
+### Enviar aviso
+POST {{baseUrl}}/avisos-professor
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tipo": "atraso",
+  "horarioChegada": "08:30",
+  "motivo": "Trânsito intenso"
+}
+
+### Listar avisos recentes (supervisão)
+GET {{baseUrl}}/avisos-professor/recentes
+Authorization: Bearer {{token}}
