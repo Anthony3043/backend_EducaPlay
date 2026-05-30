@@ -5,7 +5,7 @@ const { enviarPush } = require('../services/pushService');
 // Professor envia aviso de atraso ou ausência
 const enviar = async (req, res) => {
   try {
-    const { tipo, horarioChegada, motivo } = req.body;
+    const { tipo, horarioChegada, motivo, professorSubstitutoId, diaSemana } = req.body;
     const professorId = req.usuario.id;
 
     if (req.usuario.papel !== 'Professor') {
@@ -21,52 +21,77 @@ const enviar = async (req, res) => {
     const professor = await prisma.usuario.findUnique({ where: { id: professorId } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
 
-    // Busca todos os supervisores com seus push tokens
+    let substituto = null;
+    let aulasSubstituidas = 0;
+
+    // ── Substituição de professor ──────────────────────────────
+    if (professorSubstitutoId && diaSemana) {
+      substituto = await prisma.usuario.findUnique({
+        where: { id: professorSubstitutoId },
+        select: { id: true, nome: true },
+      });
+
+      if (substituto) {
+        // Busca aulas do professor naquele dia
+        const aulasNoDia = await prisma.aula.findMany({
+          where: {
+            professorId,
+            diaSemana,
+            isInterval: false,
+          },
+        });
+
+        let aulasParaAtualizar = aulasNoDia;
+
+        // Se atraso: só atualiza aulas que começam antes do horário de chegada
+        if (tipo === 'atraso' && horarioChegada) {
+          aulasParaAtualizar = aulasNoDia.filter(a => a.timeStart < horarioChegada);
+        }
+
+        if (aulasParaAtualizar.length > 0) {
+          await prisma.aula.updateMany({
+            where: { id: { in: aulasParaAtualizar.map(a => a.id) } },
+            data: { professorId: professorSubstitutoId },
+          });
+          aulasSubstituidas = aulasParaAtualizar.length;
+        }
+      }
+    }
+
+    // ── Notificações para a supervisão ─────────────────────────
     const supervisores = await prisma.usuario.findMany({
       where: { papel: 'Supervisao' },
       select: { id: true, expoPushToken: true },
     });
 
-    if (supervisores.length === 0) {
-      return res.json({ ok: true, notificados: 0 });
-    }
-
     const icon  = tipo === 'atraso' ? '⚠️' : '🚫';
     const label = tipo === 'atraso' ? 'Atraso' : 'Ausência';
-    const horaStr = tipo === 'atraso' && horarioChegada
-      ? ` — chegada prevista: ${horarioChegada}`
-      : '';
+    const horaStr = tipo === 'atraso' && horarioChegada ? ` — chegada: ${horarioChegada}` : '';
+    const subStr  = substituto ? ` | Substituto: ${substituto.nome}` : '';
 
     const titulo   = `${icon} ${label}: ${professor.nome}`;
-    const mensagem = `${motivo.trim()}${horaStr}`;
+    const mensagem = `${motivo.trim()}${horaStr}${subStr}`;
 
-    // 1. Cria notificação para cada supervisor (para aparecer no pop-up via polling)
-    await Promise.all(
-      supervisores.map(sup =>
-        prisma.notificacao.create({
-          data: {
-            usuarioId: sup.id,
-            icon,
-            titulo,
-            mensagem,
-            lida: false,
-          },
-        })
-      )
-    );
-
-    // 2. Envia push notification para o celular de cada supervisor
-    const tokens = supervisores.map(s => s.expoPushToken).filter(Boolean);
-    if (tokens.length > 0) {
-      await enviarPush(
-        tokens,
-        titulo,
-        mensagem,
-        { tipo, professorId, professorNome: professor.nome, horarioChegada: horarioChegada || null }
+    if (supervisores.length > 0) {
+      await Promise.all(
+        supervisores.map(sup =>
+          prisma.notificacao.create({
+            data: { usuarioId: sup.id, icon, titulo, mensagem, lida: false },
+          })
+        )
       );
+
+      const tokens = supervisores.map(s => s.expoPushToken).filter(Boolean);
+      if (tokens.length > 0) {
+        await enviarPush(tokens, titulo, mensagem, {
+          tipo, professorId, professorNome: professor.nome,
+          horarioChegada: horarioChegada || null,
+          substitutoNome: substituto?.nome || null,
+        });
+      }
     }
 
-    return res.json({ ok: true, notificados: supervisores.length });
+    return res.json({ ok: true, notificados: supervisores.length, aulasSubstituidas });
   } catch (err) {
     console.error('avisosProfessor.enviar error:', err);
     return res.status(500).json({ error: 'Não foi possível enviar o aviso.' });
