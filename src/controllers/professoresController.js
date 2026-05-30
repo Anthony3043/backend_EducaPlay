@@ -4,8 +4,10 @@ const prisma = new PrismaClient();
 
 const listar = async (req, res) => {
   try {
+    // ?apenasAtivos=true filtra só professores ativos (usado nos cronogramas)
+    const apenasAtivos = req.query.apenasAtivos === 'true';
     const professores = await prisma.usuario.findMany({
-      where: { papel: 'Professor' },
+      where: { papel: 'Professor', ...(apenasAtivos ? { ativo: true } : {}) },
       select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
       orderBy: { nome: 'asc' },
     });
