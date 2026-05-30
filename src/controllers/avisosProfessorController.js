@@ -123,26 +123,41 @@ const recentes = async (req, res) => {
 
     if (avisos.length === 0) return res.json([]);
 
+    // Busca ID do professor pelo nome extraído do título
+    const nomesUnicos = [...new Set(avisos.map(a =>
+      a.titulo.replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '').trim()
+    ))];
+    const professoresEncontrados = await prisma.usuario.findMany({
+      where: { nome: { in: nomesUnicos }, papel: 'Professor' },
+      select: { id: true, nome: true, foto: true },
+    });
+    const profMap = new Map(professoresEncontrados.map(p => [p.nome, p]));
+
     // Formata para o front
     const resultado = avisos.map(a => {
       const isAtraso = a.titulo.includes('Atraso') || a.icon === '⚠️';
-      // Extrai nome do professor do título: "⚠️ Atraso: Nome Aqui" → "Nome Aqui"
       const nomeProfessor = a.titulo
         .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
         .trim();
 
       let horarioChegada = null;
       let motivo = a.mensagem;
-      const match = a.mensagem.match(/^(.+?)\s*—\s*chegada prevista:\s*(.+)$/);
-      if (match) {
-        motivo = match[1].trim();
-        horarioChegada = match[2].trim();
+      const matchHora = a.mensagem.match(/^(.+?)\s*—\s*chegada:\s*(.+?)(?:\s*\|.*)?$/);
+      if (matchHora) {
+        motivo = matchHora[1].trim();
+        horarioChegada = matchHora[2].trim();
       }
+      // Remove info de substituto da mensagem se houver
+      motivo = motivo.replace(/\s*\|.*$/, '').trim();
+
+      const prof = profMap.get(nomeProfessor);
 
       return {
         id: a.id,
         tipo: isAtraso ? 'atraso' : 'ausencia',
-        professor: { nome: nomeProfessor },
+        professor: prof
+          ? { id: prof.id, nome: prof.nome, foto: prof.foto }
+          : { id: null, nome: nomeProfessor, foto: null },
         horarioChegada,
         motivo,
         criadoEm: a.createdAt,
