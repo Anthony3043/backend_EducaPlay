@@ -11,6 +11,7 @@ const ms = require('../controllers/mapaSalaController');
 const pt = require('../controllers/pontoController');
 const cfg = require('../controllers/configuracaoController');
 const up = require('../controllers/uploadController');
+const av = require('../controllers/avisosProfessorController');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -72,5 +73,9 @@ router.put('/configuracao-escola', auth, cfg.salvar);
 
 // Upload de arquivos (Object Storage)
 router.post('/upload/foto', auth, upload.single('foto'), up.uploadFoto);
+
+// Avisos de atraso/ausência do professor
+router.post('/avisos-professor',          auth, av.enviar);
+router.get('/avisos-professor/recentes',  auth, av.recentes);
 
 module.exports = router;
