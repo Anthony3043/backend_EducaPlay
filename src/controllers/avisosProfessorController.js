@@ -1,7 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { enviarPush } = require('../services/pushService');
 
-// Professor envia aviso de atraso ou ausência para a supervisão
+// Professor envia aviso de atraso ou ausência
 const enviar = async (req, res) => {
   try {
     const { tipo, horarioChegada, motivo } = req.body;
@@ -20,11 +21,15 @@ const enviar = async (req, res) => {
     const professor = await prisma.usuario.findUnique({ where: { id: professorId } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
 
-    // Busca todos os usuários de Supervisão para notificar
+    // Busca todos os supervisores com seus push tokens
     const supervisores = await prisma.usuario.findMany({
       where: { papel: 'Supervisao' },
-      select: { id: true },
+      select: { id: true, expoPushToken: true },
     });
+
+    if (supervisores.length === 0) {
+      return res.json({ ok: true, notificados: 0 });
+    }
 
     const icon  = tipo === 'atraso' ? '⚠️' : '🚫';
     const label = tipo === 'atraso' ? 'Atraso' : 'Ausência';
@@ -35,13 +40,13 @@ const enviar = async (req, res) => {
     const titulo   = `${icon} ${label}: ${professor.nome}`;
     const mensagem = `${motivo.trim()}${horaStr}`;
 
-    // Cria uma notificação para cada supervisor
+    // 1. Cria notificação para cada supervisor (para aparecer no pop-up via polling)
     await Promise.all(
       supervisores.map(sup =>
         prisma.notificacao.create({
           data: {
             usuarioId: sup.id,
-            icon: icon,
+            icon,
             titulo,
             mensagem,
             lida: false,
@@ -50,6 +55,17 @@ const enviar = async (req, res) => {
       )
     );
 
+    // 2. Envia push notification para o celular de cada supervisor
+    const tokens = supervisores.map(s => s.expoPushToken).filter(Boolean);
+    if (tokens.length > 0) {
+      await enviarPush(
+        tokens,
+        titulo,
+        mensagem,
+        { tipo, professorId, professorNome: professor.nome, horarioChegada: horarioChegada || null }
+      );
+    }
+
     return res.json({ ok: true, notificados: supervisores.length });
   } catch (err) {
     console.error('avisosProfessor.enviar error:', err);
@@ -57,32 +73,38 @@ const enviar = async (req, res) => {
   }
 };
 
-// Supervisão busca avisos recentes (notificações de atraso/ausência)
+// Supervisão busca avisos não lidos (polling a cada 30s no app)
 const recentes = async (req, res) => {
   try {
     if (req.usuario.papel !== 'Supervisao') {
       return res.status(403).json({ error: 'Acesso restrito à supervisão.' });
     }
 
+    // Busca notificações não lidas que são avisos (ícone ⚠️ ou 🚫)
     const avisos = await prisma.notificacao.findMany({
       where: {
         usuarioId: req.usuario.id,
         lida: false,
         OR: [
+          { icon: '⚠️' },
+          { icon: '🚫' },
           { titulo: { contains: 'Atraso' } },
           { titulo: { contains: 'Ausência' } },
-          { titulo: { contains: '⚠️' } },
-          { titulo: { contains: '🚫' } },
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 10,
     });
 
-    // Formata para o front esperando: { professor: { nome }, tipo, horarioChegada, motivo, criadoEm }
+    if (avisos.length === 0) return res.json([]);
+
+    // Formata para o front
     const resultado = avisos.map(a => {
-      const isAtraso = a.titulo.includes('Atraso') || a.titulo.includes('⚠️');
-      const nomeProfessor = a.titulo.replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '').trim();
+      const isAtraso = a.titulo.includes('Atraso') || a.icon === '⚠️';
+      // Extrai nome do professor do título: "⚠️ Atraso: Nome Aqui" → "Nome Aqui"
+      const nomeProfessor = a.titulo
+        .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
+        .trim();
 
       let horarioChegada = null;
       let motivo = a.mensagem;
@@ -102,13 +124,11 @@ const recentes = async (req, res) => {
       };
     });
 
-    // Marca como lidas após retornar
-    if (avisos.length > 0) {
-      await prisma.notificacao.updateMany({
-        where: { id: { in: avisos.map(a => a.id) } },
-        data: { lida: true },
-      });
-    }
+    // Marca como lidas para não aparecer no próximo poll
+    await prisma.notificacao.updateMany({
+      where: { id: { in: avisos.map(a => a.id) } },
+      data: { lida: true },
+    });
 
     return res.json(resultado);
   } catch (err) {
