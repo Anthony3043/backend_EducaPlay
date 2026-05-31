@@ -1,6 +1,9 @@
 const router = require('express').Router();
 const multer = require('multer');
 const auth = require('../middlewares/auth');
+
+// Endpoint público para acordar o servidor (cold start do Render)
+router.get('/ping', (req, res) => res.json({ ok: true }));
 const p = require('../controllers/professoresController');
 const s = require('../controllers/salasController');
 const c = require('../controllers/cronogramasController');
