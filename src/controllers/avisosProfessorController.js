@@ -70,13 +70,15 @@ const enviar = async (req, res) => {
     const subStr  = substituto ? ` | Substituto: ${substituto.nome}` : '';
 
     const titulo   = `${icon} ${label}: ${professor.nome}`;
+    // Dia da semana embutido no titulo para recuperar depois
+    const tituloComDia = `${titulo} [${diaSemana}]`;
     const mensagem = `${motivo.trim()}${horaStr}${subStr}`;
 
     if (supervisores.length > 0) {
       await Promise.all(
         supervisores.map(sup =>
           prisma.notificacao.create({
-            data: { usuarioId: sup.id, icon, titulo, mensagem, lida: false },
+            data: { usuarioId: sup.id, icon, titulo: tituloComDia, mensagem, lida: false },
           })
         )
       );
@@ -85,7 +87,7 @@ const enviar = async (req, res) => {
       if (tokens.length > 0) {
         await enviarPush(tokens, titulo, mensagem, {
           tipo, professorId, professorNome: professor.nome,
-          horarioChegada: horarioChegada || null,
+          horarioChegada: horarioChegada || null, diaSemana,
           substitutoNome: substituto?.nome || null,
         });
       }
@@ -136,8 +138,14 @@ const recentes = async (req, res) => {
     // Formata para o front
     const resultado = avisos.map(a => {
       const isAtraso = a.titulo.includes('Atraso') || a.icon === '⚠️';
+
+      // Extrai dia do titulo: "⚠️ Atraso: Nome [Terça]"
+      const diaMatch = a.titulo.match(/\[([^\]]+)\]$/);
+      const diaSemana = diaMatch ? diaMatch[1] : null;
+
       const nomeProfessor = a.titulo
         .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
+        .replace(/\s*\[[^\]]+\]$/, '')
         .trim();
 
       let horarioChegada = null;
@@ -147,7 +155,6 @@ const recentes = async (req, res) => {
         motivo = matchHora[1].trim();
         horarioChegada = matchHora[2].trim();
       }
-      // Remove info de substituto da mensagem se houver
       motivo = motivo.replace(/\s*\|.*$/, '').trim();
 
       const prof = profMap.get(nomeProfessor);
@@ -160,6 +167,7 @@ const recentes = async (req, res) => {
           : { id: null, nome: nomeProfessor, foto: null },
         horarioChegada,
         motivo,
+        diaSemana,   // ← dia da falta enviado ao front
         criadoEm: a.createdAt,
       };
     });
@@ -253,12 +261,16 @@ const professoresDisponiveis = async (req, res) => {
     const resultado = await Promise.all(aulasAlvo.map(async aula => {
       const comConflito = await prisma.aula.findMany({
         where: {
-          diaSemana,
           isInterval: false,
-          professorId: { not: professorAbsenteId },
+          professorId: { not: null },
+          NOT: { professorId: professorAbsenteId },
           timeStart: { lt: aula.timeEnd },
           timeEnd: { gt: aula.timeStart },
-          professor: { isNot: null },
+          // Conflito se mesma diaSemana OU se a aula não tem dia específico (vale para todos)
+          OR: [
+            { diaSemana },
+            { diaSemana: null },
+          ],
         },
         select: { professorId: true },
         distinct: ['professorId'],
