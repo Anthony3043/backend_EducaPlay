@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { enviarPush } = require('../services/pushService');
 const prisma = new PrismaClient();
 
-async function notificarProfessor(professorId, titulo, mensagem, icon = '📅') {
+async function notificarProfessor(professorId, titulo, mensagem, icon = 'calendario') {
   try {
     await prisma.notificacao.create({ data: { usuarioId: professorId, titulo, mensagem, icon } });
     const prof = await prisma.usuario.findUnique({ where: { id: professorId }, select: { expoPushToken: true } });
@@ -191,7 +191,7 @@ const criarAula = async (req, res) => {
         professorId,
         'Nova aula no seu cronograma',
         `Uma aula de "${subject}" foi adicionada: ${timeStart}–${timeEnd}${diaLabel} (turno ${cronograma.turno}).`,
-        '📅'
+        'calendario'
       );
     }
 
@@ -298,17 +298,17 @@ const atualizarAula = async (req, res) => {
       const nomeMateria = subject ?? existe.subject;
       if (novoProfId && novoProfId !== existe.professorId) {
         await notificarProfessor(novoProfId, 'Nova aula atribuída a você',
-          `A aula de "${nomeMateria}" (${novoStart}–${novoEnd}) foi atribuída ao seu cronograma.`, '📅');
+          `A aula de "${nomeMateria}" (${novoStart}–${novoEnd}) foi atribuída ao seu cronograma.`, 'calendario');
       }
       if (existe.professorId && novoProfId !== existe.professorId) {
         await notificarProfessor(existe.professorId, 'Você foi removido de uma aula',
-          `A aula de "${nomeMateria}" (${existe.timeStart}–${existe.timeEnd}) foi atribuída a outro professor.`, '📋');
+          `A aula de "${nomeMateria}" (${existe.timeStart}–${existe.timeEnd}) foi atribuída a outro professor.`, 'calendario');
       }
       if (novoProfId && novoProfId === existe.professorId) {
         const mudou = novoStart !== existe.timeStart || novoEnd !== existe.timeEnd || (subject && subject !== existe.subject) || novaDia !== existe.diaSemana;
         if (mudou) {
           await notificarProfessor(novoProfId, 'Aula modificada no seu cronograma',
-            `A aula de "${nomeMateria}" foi alterada para ${novoStart}–${novoEnd}.`, '✏️');
+            `A aula de "${nomeMateria}" foi alterada para ${novoStart}–${novoEnd}.`, 'editar');
         }
       }
     }
@@ -331,7 +331,7 @@ const deletarAula = async (req, res) => {
 
     if (existe.professorId && !existe.isInterval) {
       await notificarProfessor(existe.professorId, 'Aula removida do seu cronograma',
-        `A aula de "${existe.subject}" (${existe.timeStart}–${existe.timeEnd}) foi removida do seu cronograma.`, '🗑️');
+        `A aula de "${existe.subject}" (${existe.timeStart}–${existe.timeEnd}) foi removida do seu cronograma.`, 'remover');
     }
 
     await prisma.aula.delete({ where: { id } });

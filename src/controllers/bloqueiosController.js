@@ -81,7 +81,7 @@ const criar = async (req, res) => {
               usuarioId: sup.id,
               titulo: 'Aula removida por conflito',
               mensagem: `A aula "${aula.subject}" (${aula.timeStart}–${aula.timeEnd}) foi removida pois o professor ficou indisponível — está em ${local}.`,
-              icon: '⚠️',
+              icon: 'aviso',
             },
           });
         }

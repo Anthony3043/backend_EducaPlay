@@ -97,11 +97,11 @@ const notificarFalta = async (req, res) => {
       return res.status(404).json({ error: 'Aula ou professor não encontrado.' });
     }
 
-    const titulo = '⚠️ Ponto não registrado';
+    const titulo = 'Ponto não registrado';
     const mensagem = `Você não registrou presença na aula de ${aula.subject} (${aula.timeStart}–${aula.timeEnd}) na ${diaSemana}.`;
 
     await prisma.notificacao.create({
-      data: { usuarioId: aula.professor.id, titulo, mensagem, icon: '⚠️' },
+      data: { usuarioId: aula.professor.id, titulo, mensagem, icon: 'aviso' },
     });
 
     if (aula.professor.expoPushToken) {

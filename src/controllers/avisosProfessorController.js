@@ -64,12 +64,12 @@ const enviar = async (req, res) => {
       select: { id: true, expoPushToken: true },
     });
 
-    const icon  = tipo === 'atraso' ? '⚠️' : '🚫';
+    const icon  = tipo === 'atraso' ? 'atraso' : 'ausencia';
     const label = tipo === 'atraso' ? 'Atraso' : 'Ausência';
     const horaStr = tipo === 'atraso' && horarioChegada ? ` — chegada: ${horarioChegada}` : '';
     const subStr  = substituto ? ` | Substituto: ${substituto.nome}` : '';
 
-    const titulo   = `${icon} ${label}: ${professor.nome}`;
+    const titulo   = `${label}: ${professor.nome}`;
     // Dia da semana embutido no titulo para recuperar depois
     const tituloComDia = `${titulo} [${diaSemana}]`;
     const mensagem = `${motivo.trim()}${horaStr}${subStr}`;
@@ -124,6 +124,8 @@ const recentes = async (req, res) => {
         lida: false,
         createdAt: { gte: segunda, lte: domingo },
         OR: [
+          { icon: 'atraso' },
+          { icon: 'ausencia' },
           { icon: '⚠️' },
           { icon: '🚫' },
           { titulo: { contains: 'Atraso' } },
@@ -139,7 +141,7 @@ const recentes = async (req, res) => {
     // Busca ID do professor pelo nome extraído do título (remove emoji, label e sufixo [Dia])
     const nomesUnicos = [...new Set(avisos.map(a =>
       a.titulo
-        .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
+        .replace(/^(Atraso|Ausência):\s*/u, '')
         .replace(/\s*\[[^\]]+\]$/, '')
         .trim()
     ))];
@@ -151,14 +153,14 @@ const recentes = async (req, res) => {
 
     // Formata para o front
     const resultado = avisos.map(a => {
-      const isAtraso = a.titulo.includes('Atraso') || a.icon === '⚠️';
+      const isAtraso = a.titulo.includes('Atraso') || a.icon === 'atraso' || a.icon === '⚠️';
 
       // Extrai dia do titulo: "⚠️ Atraso: Nome [Terça]"
       const diaMatch = a.titulo.match(/\[([^\]]+)\]$/);
       const diaSemana = diaMatch ? diaMatch[1] : null;
 
       const nomeProfessor = a.titulo
-        .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
+        .replace(/^(Atraso|Ausência):\s*/u, '')
         .replace(/\s*\[[^\]]+\]$/, '')
         .trim();
 
