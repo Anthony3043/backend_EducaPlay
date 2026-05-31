@@ -107,11 +107,22 @@ const recentes = async (req, res) => {
       return res.status(403).json({ error: 'Acesso restrito à supervisão.' });
     }
 
-    // Busca notificações não lidas que são avisos (ícone ⚠️ ou 🚫)
+    // Limites da semana atual (segunda a domingo)
+    const agora = new Date();
+    const diaSemanaAtual = agora.getDay(); // 0=Dom, 1=Seg...
+    const segunda = new Date(agora);
+    segunda.setDate(agora.getDate() - (diaSemanaAtual === 0 ? 6 : diaSemanaAtual - 1));
+    segunda.setHours(0, 0, 0, 0);
+    const domingo = new Date(segunda);
+    domingo.setDate(segunda.getDate() + 6);
+    domingo.setHours(23, 59, 59, 999);
+
+    // Busca avisos não lidos DESTA semana
     const avisos = await prisma.notificacao.findMany({
       where: {
         usuarioId: req.usuario.id,
         lida: false,
+        createdAt: { gte: segunda, lte: domingo },
         OR: [
           { icon: '⚠️' },
           { icon: '🚫' },
