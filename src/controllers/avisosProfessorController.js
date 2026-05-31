@@ -136,9 +136,12 @@ const recentes = async (req, res) => {
 
     if (avisos.length === 0) return res.json([]);
 
-    // Busca ID do professor pelo nome extraído do título
+    // Busca ID do professor pelo nome extraído do título (remove emoji, label e sufixo [Dia])
     const nomesUnicos = [...new Set(avisos.map(a =>
-      a.titulo.replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '').trim()
+      a.titulo
+        .replace(/^[⚠️🚫]\s*(Atraso|Ausência):\s*/u, '')
+        .replace(/\s*\[[^\]]+\]$/, '')
+        .trim()
     ))];
     const professoresEncontrados = await prisma.usuario.findMany({
       where: { nome: { in: nomesUnicos }, papel: 'Professor' },
