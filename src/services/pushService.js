@@ -6,13 +6,28 @@ const enviarPush = async (tokens, titulo, body, data = {}) => {
 
   if (validos.length === 0) return;
 
+  // Detecta o tipo para escolher canal e cor
+  const tipo = data.tipo || '';
+  const isAtraso  = tipo === 'atraso'  || titulo.includes('Atraso');
+  const isAusencia = tipo === 'ausencia' || titulo.includes('Ausência');
+  const isPonto   = titulo.includes('Ponto') || titulo.includes('ponto');
+
+  const channelId = isAtraso || isAusencia ? 'avisos' : isPonto ? 'ponto' : 'geral';
+  const color     = isAtraso ? '#f97316' : isAusencia ? '#ef4444' : isPonto ? '#3b82f6' : '#3a7d44';
+
+  // Remove emojis do título para a barra de notificação do sistema
+  const tituloLimpo = titulo.replace(/[\u{1F300}-\u{1FFFF}⚠️✅🚫📅🔔📍✏️🗑️]/gu, '').trim();
+
   const messages = validos.map((to) => ({
     to,
-    title: titulo,
+    title: tituloLimpo,
     body,
     data,
     sound: 'default',
     priority: 'high',
+    channelId,
+    color,
+    badge: 1,
   }));
 
   try {
