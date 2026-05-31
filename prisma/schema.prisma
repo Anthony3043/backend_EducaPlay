@@ -32,6 +32,7 @@ model Usuario {
   pontosRegistrados           BaterPonto[]             @relation("PontoProfessor")
   substituicoesComoOriginal   SubstituicaoTemporaria[] @relation("SubstOriginal")
   substituicoesComoSubstituto SubstituicaoTemporaria[] @relation("SubstSubstituto")
+  permissoesMapa              PermissaoMapaSala[]
 }
 
 model Professor {
@@ -52,8 +53,9 @@ model Sala {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  aulas Aula[]
-  mapa  MapaSala?
+  aulas          Aula[]
+  mapa           MapaSala?
+  permissoesMapa PermissaoMapaSala[]
 }
 
 model Cronograma {
@@ -152,6 +154,19 @@ model ConfiguracaoEscola {
   raio      Float    @default(200)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Permissão de professor para editar mapa de uma sala específica (máx 2 por sala)
+model PermissaoMapaSala {
+  id          String   @id @default(uuid())
+  professorId String
+  salaId      String
+  createdAt   DateTime @default(now())
+
+  professor Usuario @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  sala      Sala    @relation(fields: [salaId], references: [id], onDelete: Cascade)
+
+  @@unique([professorId, salaId])
 }
 
 // Substituição temporária para UM dia específico (sem alterar o cronograma permanente)

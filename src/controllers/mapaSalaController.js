@@ -38,12 +38,12 @@ const atualizar = async (req, res) => {
   const { assentos, colunas } = req.body;
 
   if (req.usuario.papel === 'Professor') {
-    const prof = await prisma.usuario.findUnique({
-      where: { id: req.usuario.id },
-      select: { podeEditarMapaSala: true },
+    // Verifica permissão por sala específica (novo modelo) OU permissão legada
+    const permissao = await prisma.permissaoMapaSala.findUnique({
+      where: { professorId_salaId: { professorId: req.usuario.id, salaId } },
     });
-    if (!prof?.podeEditarMapaSala) {
-      return res.status(403).json({ error: 'Você não tem permissão para editar o mapa de sala.' });
+    if (!permissao) {
+      return res.status(403).json({ error: 'Você não tem permissão para editar o mapa desta sala.' });
     }
   }
 

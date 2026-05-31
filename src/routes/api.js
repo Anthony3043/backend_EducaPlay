@@ -12,6 +12,7 @@ const pt = require('../controllers/pontoController');
 const cfg = require('../controllers/configuracaoController');
 const up = require('../controllers/uploadController');
 const av = require('../controllers/avisosProfessorController');
+const pm = require('../controllers/permissaoMapaController');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -70,6 +71,11 @@ router.post('/ponto/notificar-falta', auth, pt.notificarFalta);
 // Configuração da escola
 router.get('/configuracao-escola', auth, cfg.buscar);
 router.put('/configuracao-escola', auth, cfg.salvar);
+
+// Permissões de mapa de sala por professor
+router.get('/professores/:professorId/permissoes-mapa',         auth, pm.listarSalasComPermissoes);
+router.put('/professores/:professorId/permissoes-mapa',         auth, pm.atualizarPermissoes);
+router.get('/professores/:professorId/permissoes-mapa/:salaId', auth, pm.verificarPermissao);
 
 // Upload de arquivos (Object Storage)
 router.post('/upload/foto', auth, upload.single('foto'), up.uploadFoto);
