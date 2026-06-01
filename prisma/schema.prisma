@@ -8,11 +8,12 @@ datasource db {
 }
 
 model Escola {
-  id        String   @id @default(uuid())
-  nome      String
-  codigo    String   @unique
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  nome       String
+  codigo     String   @unique
+  instituicao String?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
   usuarios      Usuario[]
   salas         Sala[]

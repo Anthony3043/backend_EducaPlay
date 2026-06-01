@@ -65,6 +65,8 @@ app.get('/admin', (req, res) => {
     <h2>Criar Nova Escola</h2>
     <label>Nome da escola</label>
     <input id="nome" placeholder="Ex: Colégio Foch" />
+    <label>Nome da instituição (aparece no perfil da supervisão)</label>
+    <input id="instituicao" placeholder="Ex: Colégio Estadual Foch" />
     <label>Código de acesso (supervisão usa este código para se cadastrar)</label>
     <input id="codigo" placeholder="Ex: Foch_2026" />
     <button onclick="criarEscola()">Criar Escola</button>
@@ -74,7 +76,7 @@ app.get('/admin', (req, res) => {
   <div class="card">
     <h2>Escolas Cadastradas</h2>
     <table id="tabela">
-      <thead><tr><th>Nome</th><th>Código</th><th>Usuários</th><th>Status</th><th>Ação</th></tr></thead>
+      <thead><tr><th>Nome</th><th>Instituição</th><th>Código</th><th>Usuários</th><th>Status</th><th>Ação</th></tr></thead>
       <tbody id="tbody"><tr><td colspan="5" style="text-align:center;color:#aaa">Carregando...</td></tr></tbody>
     </table>
   </div>
@@ -91,6 +93,7 @@ app.get('/admin', (req, res) => {
       if(!d.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa">Nenhuma escola cadastrada</td></tr>';return;}
       tb.innerHTML = d.map(e=>\`<tr>
         <td><b>\${e.nome}</b></td>
+        <td>\${e.instituicao||'—'}</td>
         <td><code>\${e.codigo}</code></td>
         <td>\${e._count?.usuarios??0}</td>
         <td><span class="badge \${e.ativo?'ativo':'inativo'}">\${e.ativo?'Ativa':'Inativa'}</span></td>
@@ -100,10 +103,11 @@ app.get('/admin', (req, res) => {
 
     async function criarEscola(){
       const nome=document.getElementById('nome').value.trim();
+      const instituicao=document.getElementById('instituicao').value.trim();
       const codigo=document.getElementById('codigo').value.trim();
       const msg=document.getElementById('msg');
       if(!nome||!codigo){showMsg('Preencha o nome e o código.','err');return;}
-      const r=await fetch(API,{method:'POST',headers:H,body:JSON.stringify({nome,codigo})});
+      const r=await fetch(API,{method:'POST',headers:H,body:JSON.stringify({nome,instituicao,codigo})});
       const d=await r.json();
       if(r.ok){showMsg('Escola criada com sucesso!','ok');document.getElementById('nome').value='';document.getElementById('codigo').value='';carregar();}
       else showMsg(d.error||'Erro ao criar escola.','err');

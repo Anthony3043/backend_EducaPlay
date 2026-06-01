@@ -30,13 +30,13 @@ const listarEscolas = async (req, res) => {
 // Criar nova escola
 const criarEscola = async (req, res) => {
   try {
-    const { nome, codigo } = req.body;
+    const { nome, codigo, instituicao } = req.body;
     if (!nome || !codigo) return res.status(400).json({ error: 'nome e codigo são obrigatórios.' });
 
     const existe = await prisma.escola.findUnique({ where: { codigo } });
     if (existe) return res.status(409).json({ error: 'Código já está em uso por outra escola.' });
 
-    const escola = await prisma.escola.create({ data: { nome, codigo } });
+    const escola = await prisma.escola.create({ data: { nome, codigo, instituicao: instituicao || null } });
     return res.status(201).json(escola);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -60,11 +60,11 @@ const toggleEscola = async (req, res) => {
   }
 };
 
-// Atualizar código de uma escola
+// Atualizar escola
 const atualizarEscola = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, codigo } = req.body;
+    const { nome, codigo, instituicao } = req.body;
 
     const escola = await prisma.escola.findUnique({ where: { id } });
     if (!escola) return res.status(404).json({ error: 'Escola não encontrada.' });
@@ -76,7 +76,11 @@ const atualizarEscola = async (req, res) => {
 
     const atualizada = await prisma.escola.update({
       where: { id },
-      data: { ...(nome && { nome }), ...(codigo && { codigo }) },
+      data: {
+        ...(nome && { nome }),
+        ...(codigo && { codigo }),
+        ...(instituicao !== undefined && { instituicao: instituicao || null }),
+      },
     });
     return res.json(atualizada);
   } catch (err) {

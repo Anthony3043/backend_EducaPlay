@@ -28,7 +28,8 @@ const register = async (req, res) => {
   const hash = await bcrypt.hash(senha, 10);
   const usuario = await prisma.usuario.create({
     data: {
-      nome, email, senha: hash, papel: 'Supervisao', instituicao,
+      nome, email, senha: hash, papel: 'Supervisao',
+      instituicao: escola.instituicao || null,
       materias: [], escolaId: escola.id,
     },
   });
