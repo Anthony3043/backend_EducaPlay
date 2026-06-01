@@ -60,7 +60,7 @@ const enviar = async (req, res) => {
 
     // ── Notificações para a supervisão ─────────────────────────
     const supervisores = await prisma.usuario.findMany({
-      where: { papel: 'Supervisao' },
+      where: { papel: 'Supervisao', escolaId: professor.escolaId },
       select: { id: true, expoPushToken: true },
     });
 
@@ -268,8 +268,9 @@ const professoresDisponiveis = async (req, res) => {
     if (aulasAlvo.length === 0) return res.json([]);
 
     // Busca todos os professores ativos (exceto o ausente)
+    const professorAbsente = await prisma.usuario.findUnique({ where: { id: professorAbsenteId }, select: { escolaId: true } });
     const todosProfessores = await prisma.usuario.findMany({
-      where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId } },
+      where: { papel: 'Professor', ativo: true, id: { not: professorAbsenteId }, escolaId: professorAbsente?.escolaId },
       select: { id: true, nome: true, foto: true, materias: true },
     });
 

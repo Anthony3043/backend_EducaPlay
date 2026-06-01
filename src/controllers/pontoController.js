@@ -30,7 +30,7 @@ const registrar = async (req, res) => {
     });
     if (!aula) return res.status(404).json({ error: 'Aula não encontrada ou não pertence a você.' });
 
-    const config = await prisma.configuracaoEscola.findFirst();
+    const config = await prisma.configuracaoEscola.findFirst({ where: { escolaId: req.usuario.escolaId } });
     if (config && (config.latitude !== 0 || config.longitude !== 0)) {
       const distancia = haversineMetros(latitude, longitude, config.latitude, config.longitude);
       if (distancia > config.raio) {

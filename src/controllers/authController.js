@@ -13,7 +13,12 @@ const register = async (req, res) => {
     return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
   }
 
-  if (!codigoSupervisao || codigoSupervisao !== process.env.CODIGO_SUPERVISAO) {
+  // Valida código e obtém escolaId
+  if (!codigoSupervisao) {
+    return res.status(403).json({ error: 'Código de supervisão obrigatório.' });
+  }
+  const escola = await prisma.escola.findUnique({ where: { codigo: codigoSupervisao.trim() } });
+  if (!escola || !escola.ativo) {
     return res.status(403).json({ error: 'Código de supervisão inválido.' });
   }
 
@@ -24,19 +29,19 @@ const register = async (req, res) => {
   const usuario = await prisma.usuario.create({
     data: {
       nome, email, senha: hash, papel: 'Supervisao', instituicao,
-      materias: [],
+      materias: [], escolaId: escola.id,
     },
   });
 
   const token = jwt.sign(
-    { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel },
+    { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, escolaId: escola.id },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
 
   return res.status(201).json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias, escolaId: escola.id },
   });
 };
 
@@ -58,14 +63,14 @@ const login = async (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel },
+    { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, escolaId: usuario.escolaId },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
 
   return res.json({
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias, podeEditarMapaSala: usuario.podeEditarMapaSala },
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel, cargo: usuario.cargo, instituicao: usuario.instituicao, foto: usuario.foto, materias: usuario.materias, podeEditarMapaSala: usuario.podeEditarMapaSala, escolaId: usuario.escolaId },
   });
 };
 
@@ -146,10 +151,13 @@ const resetSenha = async (req, res) => {
 
 const validarCodigoSupervisao = async (req, res) => {
   const { codigo } = req.body;
-  if (!codigo || codigo !== process.env.CODIGO_SUPERVISAO) {
+  if (!codigo) return res.status(400).json({ error: 'Código obrigatório.' });
+
+  const escola = await prisma.escola.findUnique({ where: { codigo: codigo.trim() } });
+  if (!escola || !escola.ativo) {
     return res.status(403).json({ error: 'Código de supervisão inválido.' });
   }
-  return res.json({ valido: true });
+  return res.json({ valido: true, escolaId: escola.id, escolaNome: escola.nome });
 };
 
 const deletarConta = async (req, res) => {

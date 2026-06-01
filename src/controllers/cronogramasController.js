@@ -47,6 +47,7 @@ async function aplicarSubstituicoes(aulas) {
 const listar = async (req, res) => {
   try {
     const cronogramas = await prisma.cronograma.findMany({
+      where: { escolaId: req.usuario.escolaId },
       include: { aulas: { include: { professor: true, sala: true }, orderBy: { timeStart: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -72,7 +73,7 @@ const buscarPorTurno = async (req, res) => {
   try {
     const { turno } = req.params;
     const cronograma = await prisma.cronograma.findFirst({
-      where: { turno },
+      where: { turno, escolaId: req.usuario.escolaId },
       include: { aulas: { include: { professor: true, sala: true }, orderBy: { timeStart: 'asc' } } },
     });
     if (!cronograma) return res.status(404).json({ error: 'Cronograma não encontrado.' });
@@ -93,7 +94,7 @@ const criar = async (req, res) => {
   try {
     const { turno } = req.body;
     if (!turno) return res.status(400).json({ error: 'Turno é obrigatório.' });
-    const cronograma = await prisma.cronograma.create({ data: { turno } });
+    const cronograma = await prisma.cronograma.create({ data: { turno, escolaId: req.usuario.escolaId } });
     return res.status(201).json(cronograma);
   } catch (err) {
     console.error('criar error:', err);

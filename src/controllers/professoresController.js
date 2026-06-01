@@ -2,12 +2,13 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
+const ef = (req) => ({ escolaId: req.usuario.escolaId });
+
 const listar = async (req, res) => {
   try {
-    // ?apenasAtivos=true filtra só professores ativos (usado nos cronogramas)
     const apenasAtivos = req.query.apenasAtivos === 'true';
     const professores = await prisma.usuario.findMany({
-      where: { papel: 'Professor', ...(apenasAtivos ? { ativo: true } : {}) },
+      where: { papel: 'Professor', ...ef(req), ...(apenasAtivos ? { ativo: true } : {}) },
       select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
       orderBy: { nome: 'asc' },
     });
@@ -20,13 +21,10 @@ const listar = async (req, res) => {
 
 const desativar = async (req, res) => {
   const { id } = req.params;
-  if (req.usuario.papel !== 'Supervisao') {
-    return res.status(403).json({ error: 'Apenas a supervisão pode desativar professores.' });
-  }
+  if (req.usuario.papel !== 'Supervisao') return res.status(403).json({ error: 'Apenas a supervisão pode desativar professores.' });
   try {
-    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor', ...ef(req) } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
-
     await prisma.usuario.update({ where: { id }, data: { ativo: false } });
     return res.json({ mensagem: 'Professor desativado com sucesso.' });
   } catch (err) {
@@ -37,13 +35,10 @@ const desativar = async (req, res) => {
 
 const reativar = async (req, res) => {
   const { id } = req.params;
-  if (req.usuario.papel !== 'Supervisao') {
-    return res.status(403).json({ error: 'Apenas a supervisão pode reativar professores.' });
-  }
+  if (req.usuario.papel !== 'Supervisao') return res.status(403).json({ error: 'Apenas a supervisão pode reativar professores.' });
   try {
-    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor', ...ef(req) } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
-
     await prisma.usuario.update({ where: { id }, data: { ativo: true } });
     return res.json({ mensagem: 'Professor reativado com sucesso.' });
   } catch (err) {
@@ -53,30 +48,20 @@ const reativar = async (req, res) => {
 };
 
 const criar = async (req, res) => {
-  if (req.usuario.papel !== 'Supervisao') {
-    return res.status(403).json({ error: 'Apenas a supervisão pode cadastrar professores.' });
-  }
-
+  if (req.usuario.papel !== 'Supervisao') return res.status(403).json({ error: 'Apenas a supervisão pode cadastrar professores.' });
   const { nome, email, senha, materias } = req.body;
-  if (!nome || !email || !senha) {
-    return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
-  }
-
+  if (!nome || !email || !senha) return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
   try {
-    const supervisao = await prisma.usuario.findUnique({
-      where: { id: req.usuario.id },
-      select: { instituicao: true },
-    });
-
+    const supervisao = await prisma.usuario.findUnique({ where: { id: req.usuario.id }, select: { instituicao: true } });
     const existe = await prisma.usuario.findUnique({ where: { email } });
     if (existe) return res.status(409).json({ error: 'E-mail já cadastrado.' });
-
     const hash = await bcrypt.hash(senha, 10);
     const professor = await prisma.usuario.create({
       data: {
         nome, email, senha: hash, papel: 'Professor',
         instituicao: supervisao?.instituicao ?? null,
         materias: Array.isArray(materias) ? materias : [],
+        escolaId: req.usuario.escolaId,          // ← herda escola da supervisão
       },
       select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
     });
@@ -88,23 +73,14 @@ const criar = async (req, res) => {
 };
 
 const atualizarMaterias = async (req, res) => {
-  if (req.usuario.papel !== 'Supervisao') {
-    return res.status(403).json({ error: 'Apenas a supervisão pode editar professores.' });
-  }
+  if (req.usuario.papel !== 'Supervisao') return res.status(403).json({ error: 'Apenas a supervisão pode editar professores.' });
   const { id } = req.params;
   const { materias } = req.body;
-  if (!Array.isArray(materias)) {
-    return res.status(400).json({ error: 'Materias deve ser uma lista.' });
-  }
+  if (!Array.isArray(materias)) return res.status(400).json({ error: 'Materias deve ser uma lista.' });
   try {
-    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor', ...ef(req) } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
-
-    const atualizado = await prisma.usuario.update({
-      where: { id },
-      data: { materias },
-      select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true },
-    });
+    const atualizado = await prisma.usuario.update({ where: { id }, data: { materias }, select: { id: true, nome: true, cargo: true, foto: true, materias: true, ativo: true, podeEditarMapaSala: true } });
     return res.json(atualizado);
   } catch (err) {
     console.error('atualizarMaterias error:', err);
@@ -113,20 +89,13 @@ const atualizarMaterias = async (req, res) => {
 };
 
 const atualizarPermissaoMapa = async (req, res) => {
-  if (req.usuario.papel !== 'Supervisao') {
-    return res.status(403).json({ error: 'Apenas a supervisão pode alterar permissões.' });
-  }
+  if (req.usuario.papel !== 'Supervisao') return res.status(403).json({ error: 'Apenas a supervisão pode alterar permissões.' });
   const { id } = req.params;
   const { podeEditarMapaSala } = req.body;
   try {
-    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor' } });
+    const professor = await prisma.usuario.findFirst({ where: { id, papel: 'Professor', ...ef(req) } });
     if (!professor) return res.status(404).json({ error: 'Professor não encontrado.' });
-
-    const atualizado = await prisma.usuario.update({
-      where: { id },
-      data: { podeEditarMapaSala: Boolean(podeEditarMapaSala) },
-      select: { id: true, podeEditarMapaSala: true },
-    });
+    const atualizado = await prisma.usuario.update({ where: { id }, data: { podeEditarMapaSala: Boolean(podeEditarMapaSala) }, select: { id: true, podeEditarMapaSala: true } });
     return res.json(atualizado);
   } catch (err) {
     console.error('atualizarPermissaoMapa error:', err);

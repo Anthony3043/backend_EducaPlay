@@ -70,7 +70,7 @@ const criar = async (req, res) => {
       });
 
       const supervisores = await prisma.usuario.findMany({
-        where: { papel: 'Supervisao' },
+        where: { papel: 'Supervisao', escolaId: req.usuario.escolaId },
         select: { id: true },
       });
       const local = descricao ? `"${descricao}"` : 'outra escola';

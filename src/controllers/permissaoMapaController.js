@@ -12,6 +12,7 @@ const listarSalasComPermissoes = async (req, res) => {
     const { professorId } = req.params;
 
     const salas = await prisma.sala.findMany({
+      where: { escolaId: req.usuario.escolaId },
       include: {
         permissoesMapa: {
           select: { professorId: true },

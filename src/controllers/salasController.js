@@ -58,8 +58,8 @@ function corAleatoria(coresUsadas) {
 
 // Determina a cor da sala e faz swap se necessário
 // salaIdAtual = id da sala sendo criada/editada (excluir da busca de existentes)
-async function determinarCor(nome, salaIdAtual = null) {
-  const where = salaIdAtual ? { id: { not: salaIdAtual } } : {};
+async function determinarCor(nome, salaIdAtual = null, escolaId = null) {
+  const where = { ...(salaIdAtual ? { id: { not: salaIdAtual } } : {}), ...(escolaId ? { escolaId } : {}) };
   const existentes = await prisma.sala.findMany({ where, select: { id: true, cor: true } });
   const coresUsadas = existentes.map(s => s.cor).filter(Boolean);
 
@@ -80,9 +80,11 @@ async function determinarCor(nome, salaIdAtual = null) {
 
 // ── Controllers ───────────────────────────────────────────────────────────────
 
+const ef = (req) => ({ escolaId: req.usuario.escolaId });
+
 const listar = async (req, res) => {
   try {
-    const salas = await prisma.sala.findMany({ orderBy: { nome: 'asc' } });
+    const salas = await prisma.sala.findMany({ where: { ...ef(req) }, orderBy: { nome: 'asc' } });
     return res.json(salas);
   } catch (err) {
     console.error('listar salas error:', err);
@@ -94,9 +96,9 @@ const criar = async (req, res) => {
   try {
     const { nome, turma, capacidade } = req.body;
     if (!nome) return res.status(400).json({ error: 'Nome da sala é obrigatório.' });
-    const cor = await determinarCor(nome);
+    const cor = await determinarCor(nome, null, req.usuario.escolaId);
     const sala = await prisma.sala.create({
-      data: { nome, turma: turma || null, capacidade: capacidade || null, cor },
+      data: { nome, turma: turma || null, capacidade: capacidade || null, cor, escolaId: req.usuario.escolaId },
     });
     return res.status(201).json(sala);
   } catch (err) {
@@ -108,14 +110,11 @@ const criar = async (req, res) => {
 const atualizar = async (req, res) => {
   try {
     const { nome, turma, capacidade } = req.body;
-    const existe = await prisma.sala.findUnique({ where: { id: req.params.id } });
+    const existe = await prisma.sala.findFirst({ where: { id: req.params.id, ...ef(req) } });
     if (!existe) return res.status(404).json({ error: 'Sala não encontrada.' });
-
-    // Recalcula cor apenas se o nome mudou
     const cor = nome !== existe.nome
-      ? await determinarCor(nome, req.params.id)
-      : existe.cor || await determinarCor(nome, req.params.id);
-
+      ? await determinarCor(nome, req.params.id, req.usuario.escolaId)
+      : existe.cor || await determinarCor(nome, req.params.id, req.usuario.escolaId);
     const sala = await prisma.sala.update({
       where: { id: req.params.id },
       data: { nome, turma: turma ?? null, capacidade: capacidade ?? null, cor },
@@ -129,7 +128,7 @@ const atualizar = async (req, res) => {
 
 const deletar = async (req, res) => {
   try {
-    const existe = await prisma.sala.findUnique({ where: { id: req.params.id } });
+    const existe = await prisma.sala.findFirst({ where: { id: req.params.id, ...ef(req) } });
     if (!existe) return res.status(404).json({ error: 'Sala não encontrada.' });
     await prisma.sala.delete({ where: { id: req.params.id } });
     return res.status(204).send();

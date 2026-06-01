@@ -7,6 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Escola {
+  id        String   @id @default(uuid())
+  nome      String
+  codigo    String   @unique
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  usuarios      Usuario[]
+  salas         Sala[]
+  cronogramas   Cronograma[]
+  configuracoes ConfiguracaoEscola[]
+}
+
 model Usuario {
   id          String   @id @default(uuid())
   nome        String
@@ -22,9 +35,11 @@ model Usuario {
   expoPushToken  String?
   ativo              Boolean  @default(true)
   podeEditarMapaSala Boolean  @default(false)
+  escolaId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  escola      Escola?  @relation(fields: [escolaId], references: [id])
   disponibilidades            Disponibilidade[]
   notificacoes                Notificacao[]
   aulas                       Aula[]                   @relation("AulaProfessor")
@@ -51,8 +66,11 @@ model Sala {
   turma      String?
   capacidade String?
   cor        String   @default("")
+  escolaId   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  escola     Escola?  @relation(fields: [escolaId], references: [id])
 
   aulas          Aula[]
   mapa           MapaSala?
@@ -62,10 +80,12 @@ model Sala {
 model Cronograma {
   id        String   @id @default(uuid())
   turno     String
+  escolaId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  aulas Aula[]
+  escola    Escola?  @relation(fields: [escolaId], references: [id])
+  aulas     Aula[]
 }
 
 model Aula {
@@ -153,8 +173,11 @@ model ConfiguracaoEscola {
   latitude  Float    @default(0)
   longitude Float    @default(0)
   raio      Float    @default(200)
+  escolaId  String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  escola    Escola?  @relation(fields: [escolaId], references: [id])
 }
 
 // Permissão de professor para editar mapa de uma sala específica (máx 2 por sala)
