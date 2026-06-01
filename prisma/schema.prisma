@@ -50,6 +50,7 @@ model Sala {
   nome       String
   turma      String?
   capacidade String?
+  cor        String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
