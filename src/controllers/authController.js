@@ -29,7 +29,7 @@ const register = async (req, res) => {
   const usuario = await prisma.usuario.create({
     data: {
       nome, email, senha: hash, papel: 'Supervisao',
-      instituicao: escola.instituicao || null,
+      instituicao: escola.nome,
       materias: [], escolaId: escola.id,
     },
   });
