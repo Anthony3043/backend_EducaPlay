@@ -55,8 +55,31 @@ app.get('/admin', (req, res) => {
     .ativo{background:#dcfce7;color:#166534}.inativo{background:#fef2f2;color:#dc2626}
     .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-weight:600}
     .btn-toggle{background:#f1f5f9;color:#475569}
+    .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999}
+    .overlay.show{display:flex}
+    .dialog{background:#fff;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+    .dialog h3{margin:0 0 8px;font-size:17px;color:#1a1a2e}
+    .dialog p{font-size:13px;color:#555;margin:0 0 16px;line-height:1.6}
+    .dialog code{background:#fef2f2;color:#dc2626;padding:4px 8px;border-radius:6px;font-size:13px}
+    .dialog input{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;margin-top:12px;box-sizing:border-box}
+    .dialog input:focus{outline:none;border-color:#dc2626}
+    .dialog-btns{display:flex;gap:10px;margin-top:16px}
+    .btn-cancel{flex:1;padding:11px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
+    .btn-confirm{flex:1;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;opacity:.4;pointer-events:none}
+    .btn-confirm.ok{opacity:1;pointer-events:auto}
   </style></head>
   <body>
+  <div class="overlay" id="overlay">
+    <div class="dialog">
+      <h3>Desativar escola</h3>
+      <p>Para confirmar, digite exatamente:<br/><code id="textoConfirm"></code></p>
+      <input id="inputConfirm" placeholder="Digite aqui..." oninput="checarConfirm()" autocomplete="off"/>
+      <div class="dialog-btns">
+        <button class="btn-cancel" onclick="fecharDialog()">Cancelar</button>
+        <button class="btn-confirm" id="btnConfirm" onclick="executarToggle()">Desativar</button>
+      </div>
+    </div>
+  </div>
   <div class="header">
     <div><h1>EducaPlay — Painel Admin</h1><p>Gerenciamento de escolas</p></div>
   </div>
@@ -94,7 +117,7 @@ app.get('/admin', (req, res) => {
         <td><code>\${e.codigo}</code></td>
         <td>\${e._count?.usuarios??0}</td>
         <td><span class="badge \${e.ativo?'ativo':'inativo'}">\${e.ativo?'Ativa':'Inativa'}</span></td>
-        <td><button class="btn-sm btn-toggle" onclick="toggle('\${e.id}')">\${e.ativo?'Desativar':'Ativar'}</button></td>
+        <td><button class="btn-sm btn-toggle" onclick="\${e.ativo?\`abrirDialog('\${e.id}','\${e.nome}')\`:\`toggle('\${e.id}')\`}">\${e.ativo?'Desativar':'Ativar'}</button></td>
       </tr>\`).join('');
     }
 
@@ -107,6 +130,38 @@ app.get('/admin', (req, res) => {
       const d=await r.json();
       if(r.ok){showMsg('Escola criada com sucesso!','ok');document.getElementById('nome').value='';document.getElementById('codigo').value='';carregar();}
       else showMsg(d.error||'Erro ao criar escola.','err');
+    }
+
+    let _toggleId = null;
+    let _textoEsperado = '';
+
+    function abrirDialog(id, nome){
+      _toggleId = id;
+      _textoEsperado = \`Eu quero desativar a instituição \${nome}\`;
+      document.getElementById('textoConfirm').textContent = _textoEsperado;
+      document.getElementById('inputConfirm').value = '';
+      document.getElementById('btnConfirm').classList.remove('ok');
+      document.getElementById('overlay').classList.add('show');
+      setTimeout(()=>document.getElementById('inputConfirm').focus(),100);
+    }
+
+    function fecharDialog(){
+      document.getElementById('overlay').classList.remove('show');
+      _toggleId = null;
+    }
+
+    function checarConfirm(){
+      const val = document.getElementById('inputConfirm').value;
+      const btn = document.getElementById('btnConfirm');
+      if(val === _textoEsperado) btn.classList.add('ok');
+      else btn.classList.remove('ok');
+    }
+
+    async function executarToggle(){
+      if(!_toggleId) return;
+      await fetch(API+'/'+_toggleId+'/toggle',{method:'PUT',headers:H});
+      fecharDialog();
+      carregar();
     }
 
     async function toggle(id){
