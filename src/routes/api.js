@@ -1,9 +1,16 @@
 const router = require('express').Router();
 const multer = require('multer');
 const auth = require('../middlewares/auth');
+const admin = require('../controllers/adminController');
 
 // Endpoint público para acordar o servidor (cold start do Render)
 router.get('/ping', (req, res) => res.json({ ok: true }));
+
+// ── Admin (protegido por ADMIN_SECRET_KEY) ───────────────────────────────────
+router.get('/admin/escolas',           admin.verificarAdmin, admin.listarEscolas);
+router.post('/admin/escolas',          admin.verificarAdmin, admin.criarEscola);
+router.put('/admin/escolas/:id',       admin.verificarAdmin, admin.atualizarEscola);
+router.put('/admin/escolas/:id/toggle',admin.verificarAdmin, admin.toggleEscola);
 const p = require('../controllers/professoresController');
 const s = require('../controllers/salasController');
 const c = require('../controllers/cronogramasController');
