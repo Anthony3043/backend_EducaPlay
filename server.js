@@ -1,6 +1,13 @@
 require('dotenv').config();
+const Sentry = require('@sentry/node');
 const express = require('express');
 const cors = require('cors');
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'production',
+  tracesSampleRate: 0.2,
+});
 
 const app = express();
 
@@ -116,6 +123,9 @@ app.get('/admin', (req, res) => {
 // Rotas autenticadas
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api', require('./src/routes/api'));
+
+// Sentry captura erros antes do handler genérico
+Sentry.setupExpressErrorHandler(app);
 
 // Tratamento de erros global
 app.use((err, req, res, next) => {

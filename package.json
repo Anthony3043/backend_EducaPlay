@@ -11,11 +11,11 @@
     "db:migrate": "npx prisma@5.22.0 migrate dev --name init",
     "db:studio": "npx prisma@5.22.0 studio",
     "db:seed": "node prisma/seed.js"
-    
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
     "@prisma/client": "^5.22.0",
+    "@sentry/node": "^10.55.0",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
