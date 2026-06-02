@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { enviarPush } = require('../services/pushService');
 const prisma = new PrismaClient();
 
 const listar = async (req, res) => {
@@ -71,19 +72,17 @@ const criar = async (req, res) => {
 
       const supervisores = await prisma.usuario.findMany({
         where: { papel: 'Supervisao', escolaId: req.usuario.escolaId },
-        select: { id: true },
+        select: { id: true, expoPushToken: true },
       });
       const local = descricao ? `"${descricao}"` : 'outra escola';
       for (const aula of aulasConflitantes) {
         for (const sup of supervisores) {
+          const titulo = 'Aula removida por conflito';
+          const mensagem = `A aula "${aula.subject}" (${aula.timeStart}–${aula.timeEnd}) foi removida pois o professor ficou indisponível — está em ${local}.`;
           await prisma.notificacao.create({
-            data: {
-              usuarioId: sup.id,
-              titulo: 'Aula removida por conflito',
-              mensagem: `A aula "${aula.subject}" (${aula.timeStart}–${aula.timeEnd}) foi removida pois o professor ficou indisponível — está em ${local}.`,
-              icon: 'aviso',
-            },
+            data: { usuarioId: sup.id, titulo, mensagem, icon: 'aviso' },
           });
+          if (sup.expoPushToken) await enviarPush(sup.expoPushToken, titulo, mensagem, { tipo: 'aviso' });
         }
       }
     }
