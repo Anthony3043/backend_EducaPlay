@@ -183,4 +183,32 @@ const salvarPushToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta, validarCodigoSupervisao };
+const testarPush = async (req, res) => {
+  try {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: req.usuario.id },
+      select: { expoPushToken: true, nome: true },
+    });
+    if (!usuario?.expoPushToken) {
+      return res.json({ ok: false, erro: 'Token não encontrado no banco', token: null });
+    }
+    const axios = require('axios');
+    const message = {
+      to: usuario.expoPushToken,
+      title: '🔔 Teste EducaPlay',
+      body: `Notificação de teste para ${usuario.nome}`,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'geral_v2',
+    };
+    const r = await axios.post('https://exp.host/--/api/v2/push/send', [message], {
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      timeout: 8000,
+    });
+    return res.json({ ok: true, token: usuario.expoPushToken, respostaExpo: r.data });
+  } catch (err) {
+    return res.status(500).json({ ok: false, erro: err.message });
+  }
+};
+
+module.exports = { register, login, perfil, atualizarPerfil, checkEmail, resetSenha, salvarPushToken, deletarConta, validarCodigoSupervisao, testarPush };
