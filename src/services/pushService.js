@@ -31,9 +31,16 @@ const enviarPush = async (tokens, titulo, body, data = {}) => {
   }));
 
   try {
-    await axios.post('https://exp.host/--/api/v2/push/send', messages, {
+    const res = await axios.post('https://exp.host/--/api/v2/push/send', messages, {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       timeout: 8000,
+    });
+    // Loga erros por token para diagnóstico
+    const receipts = res.data?.data ?? [];
+    receipts.forEach((r, i) => {
+      if (r.status === 'error') {
+        console.error(`Push erro token[${i}] ${validos[i]}: ${r.message} (${r.details?.error})`);
+      }
     });
   } catch (e) {
     console.error('Erro ao enviar push:', e.message);
