@@ -12,9 +12,7 @@ const enviarPush = async (tokens, titulo, body, data = {}) => {
   const isAusencia = tipo === 'ausencia' || titulo.includes('Ausência');
   const isPonto   = titulo.includes('Ponto') || titulo.includes('ponto');
 
-  // TESTE: sem channelId para verificar se canal é o problema
-  // const channelId = isAtraso || isAusencia ? 'avisos_v2' : isPonto ? 'ponto_v2' : 'geral_v2';
-  const channelId = 'default';
+  const channelId = isAtraso || isAusencia ? 'avisos_v2' : isPonto ? 'ponto_v2' : 'geral_v2';
   const color     = isAtraso ? '#f97316' : isAusencia ? '#ef4444' : isPonto ? '#3b82f6' : '#3a7d44';
 
   // Remove emojis do título para a barra de notificação do sistema
